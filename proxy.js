@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
-export async function middleware(request) {
+export async function proxy(request) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -28,6 +28,10 @@ export async function middleware(request) {
   }
 
   if (!user && request.nextUrl.pathname.startsWith('/project')) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  if (!user && request.nextUrl.pathname.startsWith('/build')) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 

@@ -1,177 +1,170 @@
-'use client'
+import Link from 'next/link'
 
-import { useState } from 'react'
-import BlueprintEditor from '@/components/blueprint/BlueprintEditor'
-
-export default function Home() {
-  const [description, setDescription] = useState('')
-  const [research, setResearch] = useState('')
-  const [blueprint, setBlueprint] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [blueprintLoading, setBlueprintLoading] = useState(false)
-  const [approved, setApproved] = useState(false)
-
-  async function handleResearch() {
-    if (!description.trim()) return
-    setLoading(true)
-    setResearch('')
-    setBlueprint(null)
-    setApproved(false)
-
-    try {
-      const response = await fetch('/api/research', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description })
-      })
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        setResearch(prev => prev + decoder.decode(value))
-      }
-    } catch (error) {
-      setResearch('Error: Check your GROQ_API_KEY in .env.local')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleGenerateBlueprint() {
-    setBlueprintLoading(true)
-    try {
-      const response = await fetch('/api/blueprint/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description, research })
-      })
-      const data = await response.json()
-      if (data.blueprint) {
-        setBlueprint(data.blueprint)
-      } else {
-        alert('Blueprint generation failed. Try again.')
-      }
-    } catch (error) {
-      alert('Something went wrong. Check the console.')
-      console.error(error)
-    } finally {
-      setBlueprintLoading(false)
-    }
-  }
-
-  function handleApprove(finalBlueprint) {
-    setBlueprint(finalBlueprint)
-    setApproved(true)
-    console.log('Approved blueprint:', finalBlueprint)
-    alert('Blueprint approved! 🎉 Next step: saving to database and generating code.')
-  }
-
+export default function LandingPage() {
   return (
-    <main style={{ maxWidth: '900px', margin: '0 auto', padding: '40px 20px' }}>
+    <div style={{ minHeight: '100vh', background: '#fff', fontFamily: 'inherit' }}>
 
-      {/* Header */}
-      <h1 style={{ fontSize: '32px', fontWeight: '600', marginBottom: '4px' }}>Atlas.AI 🌍</h1>
-      <p style={{ color: '#666', marginBottom: '32px' }}>
-        Describe your app — Atlas researches it, plans it, and builds it.
-      </p>
-
-      {/* Step 1: Describe */}
-      {!approved && (
-        <div style={{ marginBottom: '24px' }}>
-          <label style={{ fontSize: '13px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
-            Step 1 — Describe your app idea
-          </label>
-          <textarea
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            placeholder="Example: A platform where freelancers find short-term projects posted by small businesses..."
-            style={{
-              width: '100%', minHeight: '100px', padding: '12px',
-              fontSize: '14px', border: '1px solid #ddd', borderRadius: '8px',
-              resize: 'vertical', marginBottom: '10px', fontFamily: 'inherit',
-              boxSizing: 'border-box'
-            }}
-          />
-          <button
-            onClick={handleResearch}
-            disabled={loading || !description.trim()}
-            style={{
-              background: loading ? '#999' : '#000', color: '#fff',
-              border: 'none', padding: '11px 24px', fontSize: '14px',
-              borderRadius: '8px', cursor: loading ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {loading ? 'Researching...' : 'Research My Idea →'}
-          </button>
+      {/* Navbar */}
+      <nav style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 40px', height: '60px',
+        borderBottom: '1px solid #f0f0f0', position: 'sticky', top: 0,
+        background: '#fff', zIndex: 100
+      }}>
+        <div style={{ fontSize: '20px', fontWeight: '700', letterSpacing: '-0.5px' }}>
+          Atlas.AI
         </div>
-      )}
-
-      {/* Step 2: Research output */}
-      {research && !approved && (
-        <div style={{ marginBottom: '24px' }}>
-          <label style={{ fontSize: '13px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
-            Step 2 — Research Brief
-          </label>
-          <div style={{
-            background: '#f9f9f9', border: '1px solid #eee', borderRadius: '8px',
-            padding: '20px', whiteSpace: 'pre-wrap', fontSize: '13px',
-            lineHeight: '1.7', color: '#333', marginBottom: '14px',
-            maxHeight: '320px', overflowY: 'auto'
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <Link href="/login" style={{
+            fontSize: '14px', fontWeight: '500', color: '#333',
+            textDecoration: 'none', padding: '8px 16px',
+            border: '1px solid #e5e5e5', borderRadius: '8px'
           }}>
-            {research}
-          </div>
-
-          {!blueprint && (
-            <button
-              onClick={handleGenerateBlueprint}
-              disabled={blueprintLoading || loading}
-              style={{
-                background: blueprintLoading ? '#999' : '#1a1a1a', color: '#fff',
-                border: 'none', padding: '11px 24px', fontSize: '14px',
-                borderRadius: '8px', cursor: blueprintLoading ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {blueprintLoading ? 'Building Blueprint...' : 'Generate Blueprint →'}
-            </button>
-          )}
+            Login
+          </Link>
+          <Link href="/signup" style={{
+            fontSize: '14px', fontWeight: '500', color: '#fff',
+            textDecoration: 'none', padding: '8px 18px',
+            background: '#000', borderRadius: '8px'
+          }}>
+            Create free account
+          </Link>
         </div>
-      )}
+      </nav>
 
-      {/* Step 3: Blueprint Editor */}
-      {blueprint && !approved && (
-        <div>
-          <label style={{ fontSize: '13px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '10px' }}>
-            Step 3 — Edit your Blueprint
-          </label>
-          <BlueprintEditor blueprint={blueprint} onApprove={handleApprove} />
-        </div>
-      )}
-
-      {/* Approved state */}
-      {approved && (
+      {/* Hero */}
+      <div style={{ textAlign: 'center', padding: '90px 20px 60px' }}>
         <div style={{
-          textAlign: 'center', padding: '60px 20px',
-          background: '#f0fdf4', border: '1px solid #bbf7d0',
-          borderRadius: '12px'
+          display: 'inline-block', fontSize: '12px', fontWeight: '600',
+          background: '#f0fdf4', color: '#16a34a', padding: '4px 12px',
+          borderRadius: '20px', marginBottom: '20px', letterSpacing: '0.05em'
         }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎉</div>
-          <h2 style={{ fontSize: '22px', fontWeight: '600', marginBottom: '8px' }}>Blueprint Approved!</h2>
-          <p style={{ color: '#555', marginBottom: '24px' }}>
-            Your app plan is locked in. Next: Risk Radar analysis, then code generation.
-          </p>
-          <button
-            onClick={() => { setApproved(false); setBlueprint(null); setResearch(''); setDescription('') }}
-            style={{
-              background: 'none', border: '1px solid #ccc', padding: '8px 20px',
-              borderRadius: '8px', cursor: 'pointer', fontSize: '13px'
-            }}
-          >
-            Start a new project
-          </button>
+          AI-POWERED APP BUILDER
         </div>
-      )}
+        <h1 style={{
+          fontSize: 'clamp(32px, 6vw, 58px)', fontWeight: '800',
+          lineHeight: '1.15', marginBottom: '20px',
+          letterSpacing: '-1px', color: '#0a0a0a'
+        }}>
+          Build any web app —<br />
+          from idea to deployed
+        </h1>
+        <p style={{
+          fontSize: '18px', color: '#666', maxWidth: '520px',
+          margin: '0 auto 36px', lineHeight: '1.6'
+        }}>
+          Atlas researches your idea, creates an editable plan,
+          and generates production-ready code using AI agents.
+          No coding required.
+        </p>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Link href="/signup" style={{
+            background: '#000', color: '#fff', padding: '13px 28px',
+            borderRadius: '10px', fontSize: '15px', fontWeight: '600',
+            textDecoration: 'none'
+          }}>
+            Start building free →
+          </Link>
+          <Link href="/login" style={{
+            background: '#f5f5f5', color: '#333', padding: '13px 28px',
+            borderRadius: '10px', fontSize: '15px', fontWeight: '500',
+            textDecoration: 'none'
+          }}>
+            Sign in
+          </Link>
+        </div>
+      </div>
 
-    </main>
+      {/* How it works */}
+      <div style={{
+        maxWidth: '900px', margin: '0 auto', padding: '40px 20px 80px'
+      }}>
+        <h2 style={{
+          textAlign: 'center', fontSize: '28px', fontWeight: '700',
+          marginBottom: '40px', color: '#0a0a0a'
+        }}>
+          How Atlas works
+        </h2>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '20px'
+        }}>
+          {[
+            { step: '01', icon: '🔍', title: 'Research', desc: 'Atlas researches your idea — competitors, features, tech stack, and pitfalls.' },
+            { step: '02', icon: '🗺️', title: 'Blueprint', desc: 'Get an editable visual plan with pages, features, API routes, and database tables.' },
+            { step: '03', icon: '⚡', title: 'Generate', desc: '5 AI agents build your frontend, backend, database, and tests in parallel.' },
+            { step: '04', icon: '🚀', title: 'Deploy', desc: 'One click pushes your app to GitHub and deploys it live on Vercel.' },
+          ].map(item => (
+            <div key={item.step} style={{
+              background: '#fafafa', border: '1px solid #f0f0f0',
+              borderRadius: '14px', padding: '24px'
+            }}>
+              <div style={{ fontSize: '28px', marginBottom: '12px' }}>{item.icon}</div>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#aaa', letterSpacing: '0.1em', marginBottom: '6px' }}>
+                STEP {item.step}
+              </div>
+              <div style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px', color: '#0a0a0a' }}>
+                {item.title}
+              </div>
+              <div style={{ fontSize: '13px', color: '#666', lineHeight: '1.6' }}>
+                {item.desc}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* What makes it different */}
+      <div style={{ background: '#fafafa', borderTop: '1px solid #f0f0f0', padding: '60px 20px' }}>
+        <div style={{ maxWidth: '700px', margin: '0 auto', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '26px', fontWeight: '700', marginBottom: '12px' }}>
+            Not just another code generator
+          </h2>
+          <p style={{ color: '#666', fontSize: '15px', lineHeight: '1.7', marginBottom: '32px' }}>
+            Every other AI builder takes your prompt and starts coding immediately.
+            Atlas <strong>researches first</strong>, <strong>plans with you</strong>,
+            checks for risks, then builds — so what you get actually makes sense.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
+            {['Research before building', 'Visual Intent Graph', 'Risk Radar', 'Multi-agent generation', 'App DNA marketplace', 'AI usability testing'].map(f => (
+              <span key={f} style={{
+                fontSize: '13px', padding: '6px 14px', background: '#fff',
+                border: '1px solid #e5e5e5', borderRadius: '20px', color: '#333'
+              }}>
+                ✓ {f}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div style={{ textAlign: 'center', padding: '70px 20px' }}>
+        <h2 style={{ fontSize: '30px', fontWeight: '800', marginBottom: '12px' }}>
+          Ready to build your app?
+        </h2>
+        <p style={{ color: '#888', marginBottom: '24px', fontSize: '15px' }}>
+          Free to start. No credit card required.
+        </p>
+        <Link href="/signup" style={{
+          background: '#000', color: '#fff', padding: '14px 32px',
+          borderRadius: '10px', fontSize: '16px', fontWeight: '600',
+          textDecoration: 'none'
+        }}>
+          Create free account →
+        </Link>
+      </div>
+
+      {/* Footer */}
+      <div style={{
+        borderTop: '1px solid #f0f0f0', padding: '20px 40px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+      }}>
+        <span style={{ fontSize: '14px', fontWeight: '700' }}>Atlas.AI</span>
+        <span style={{ fontSize: '12px', color: '#aaa' }}>Built with Atlas.AI</span>
+      </div>
+
+    </div>
   )
 }
