@@ -3,20 +3,23 @@
 import { useState } from 'react'
 import BlueprintEditor from '@/components/blueprint/BlueprintEditor'
 
-export default function Home() {
+export default function BuildPage() {
   const [description, setDescription] = useState('')
   const [research, setResearch] = useState('')
   const [blueprint, setBlueprint] = useState(null)
   const [loading, setLoading] = useState(false)
   const [blueprintLoading, setBlueprintLoading] = useState(false)
   const [approved, setApproved] = useState(false)
+  const [step, setStep] = useState(0)
+  // 0 = idle, 1 = researching/done, 2 = blueprint
 
   async function handleResearch() {
-    if (!description.trim()) return
+    if (!description.trim() || loading) return
     setLoading(true)
     setResearch('')
     setBlueprint(null)
     setApproved(false)
+    setStep(1)
 
     try {
       const response = await fetch('/api/research', {
@@ -31,8 +34,8 @@ export default function Home() {
         if (done) break
         setResearch(prev => prev + decoder.decode(value))
       }
-    } catch (error) {
-      setResearch('Error: Check your GROQ_API_KEY in .env.local')
+    } catch {
+      setResearch('Error connecting to AI. Check your GROQ_API_KEY.')
     } finally {
       setLoading(false)
     }
@@ -41,20 +44,18 @@ export default function Home() {
   async function handleGenerateBlueprint() {
     setBlueprintLoading(true)
     try {
-      const response = await fetch('/api/blueprint/generate', {
+      const res = await fetch('/api/blueprint/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description, research })
       })
-      const data = await response.json()
+      const data = await res.json()
       if (data.blueprint) {
         setBlueprint(data.blueprint)
-      } else {
-        alert('Blueprint generation failed. Try again.')
+        setStep(2)
       }
-    } catch (error) {
-      alert('Something went wrong. Check the console.')
-      console.error(error)
+    } catch {
+      alert('Blueprint generation failed. Try again.')
     } finally {
       setBlueprintLoading(false)
     }
@@ -63,115 +64,254 @@ export default function Home() {
   function handleApprove(finalBlueprint) {
     setBlueprint(finalBlueprint)
     setApproved(true)
-    console.log('Approved blueprint:', finalBlueprint)
-    alert('Blueprint approved! 🎉 Next step: saving to database and generating code.')
+  }
+
+  function reset() {
+    setDescription('')
+    setResearch('')
+    setBlueprint(null)
+    setApproved(false)
+    setStep(0)
   }
 
   return (
-    <main style={{ maxWidth: '900px', margin: '0 auto', padding: '40px 20px' }}>
+    <div style={{
+      display: 'flex', flexDirection: 'column',
+      height: '100vh', background: '#fff', position: 'relative'
+    }}>
 
-      {/* Header */}
-      <h1 style={{ fontSize: '32px', fontWeight: '600', marginBottom: '4px' }}>Atlas.AI 🌍</h1>
-      <p style={{ color: '#666', marginBottom: '32px' }}>
-        Describe your app — Atlas researches it, plans it, and builds it.
-      </p>
-
-      {/* Step 1: Describe */}
-      {!approved && (
-        <div style={{ marginBottom: '24px' }}>
-          <label style={{ fontSize: '13px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
-            Step 1 — Describe your app idea
-          </label>
-          <textarea
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            placeholder="Example: A platform where freelancers find short-term projects posted by small businesses..."
-            style={{
-              width: '100%', minHeight: '100px', padding: '12px',
-              fontSize: '14px', border: '1px solid #ddd', borderRadius: '8px',
-              resize: 'vertical', marginBottom: '10px', fontFamily: 'inherit',
-              boxSizing: 'border-box'
-            }}
-          />
-          <button
-            onClick={handleResearch}
-            disabled={loading || !description.trim()}
-            style={{
-              background: loading ? '#999' : '#000', color: '#fff',
-              border: 'none', padding: '11px 24px', fontSize: '14px',
-              borderRadius: '8px', cursor: loading ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {loading ? 'Researching...' : 'Research My Idea →'}
-          </button>
-        </div>
-      )}
-
-      {/* Step 2: Research output */}
-      {research && !approved && (
-        <div style={{ marginBottom: '24px' }}>
-          <label style={{ fontSize: '13px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '6px' }}>
-            Step 2 — Research Brief
-          </label>
-          <div style={{
-            background: '#f9f9f9', border: '1px solid #eee', borderRadius: '8px',
-            padding: '20px', whiteSpace: 'pre-wrap', fontSize: '13px',
-            lineHeight: '1.7', color: '#333', marginBottom: '14px',
-            maxHeight: '320px', overflowY: 'auto'
-          }}>
-            {research}
+      {/* Top bar */}
+      <div style={{
+        padding: '16px 28px', borderBottom: '1px solid #f0f0f0',
+        display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0
+      }}>
+        <h1 style={{ fontSize: '18px', fontWeight: '800', color: '#0a0a0a', margin: 0 }}>
+          New Project
+        </h1>
+        {/* Step indicators */}
+        {[
+          { num: 1, label: 'Research' },
+          { num: 2, label: 'Blueprint' },
+          { num: 3, label: 'Generate' },
+          { num: 4, label: 'Deploy' }
+        ].map((s, i) => (
+          <div key={s.num} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {i > 0 && <div style={{ width: '20px', height: '1px', background: '#e5e5e5' }} />}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '5px',
+              opacity: step >= i ? 1 : 0.35
+            }}>
+              <div style={{
+                width: '20px', height: '20px', borderRadius: '50%',
+                background: step > i ? '#16a34a' : step === i ? '#0a0a0a' : '#e5e5e5',
+                color: step >= i ? '#fff' : '#999',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '10px', fontWeight: '700'
+              }}>
+                {step > i ? '✓' : s.num}
+              </div>
+              <span style={{ fontSize: '12px', fontWeight: '500', color: step >= i ? '#0a0a0a' : '#aaa' }}>
+                {s.label}
+              </span>
+            </div>
           </div>
+        ))}
+      </div>
 
-          {!blueprint && (
+      {/* Main scrollable content */}
+      <div style={{ flex: 1, overflow: 'auto', padding: '28px 28px 160px' }}>
+
+        {/* Idle state - centered welcome */}
+        {step === 0 && (
+          <div style={{
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            minHeight: '60vh', textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🌍</div>
+            <h2 style={{ fontSize: '28px', fontWeight: '800', color: '#0a0a0a', marginBottom: '10px' }}>
+              What are you building today?
+            </h2>
+            <p style={{ fontSize: '16px', color: '#888', maxWidth: '440px', lineHeight: '1.6' }}>
+              Describe your app idea below. Atlas will research it,
+              create a plan, and build it for you.
+            </p>
+          </div>
+        )}
+
+        {/* Research output */}
+        {step >= 1 && research && (
+          <div style={{ maxWidth: '780px', margin: '0 auto' }}>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                <div style={{
+                  width: '28px', height: '28px', borderRadius: '50%',
+                  background: '#0a0a0a', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', fontSize: '14px'
+                }}>🔍</div>
+                <span style={{ fontSize: '15px', fontWeight: '700', color: '#0a0a0a' }}>
+                  Research Brief
+                </span>
+                {loading && (
+                  <span style={{ fontSize: '12px', color: '#888', fontStyle: 'italic' }}>
+                    researching...
+                  </span>
+                )}
+              </div>
+
+              {/* User message bubble */}
+              <div style={{
+                background: '#f5f5f5', borderRadius: '12px 12px 4px 12px',
+                padding: '12px 16px', marginBottom: '16px',
+                fontSize: '14px', color: '#333', maxWidth: '80%', marginLeft: 'auto'
+              }}>
+                {description}
+              </div>
+
+              {/* Research result */}
+              <div style={{
+                background: '#fafafa', border: '1px solid #f0f0f0',
+                borderRadius: '4px 12px 12px 12px', padding: '20px 24px',
+                fontSize: '14px', lineHeight: '1.8', color: '#333',
+                whiteSpace: 'pre-wrap'
+              }}>
+                {research}
+              </div>
+            </div>
+
+            {/* Generate Blueprint button */}
+            {!loading && !blueprint && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
+                <button
+                  onClick={handleGenerateBlueprint}
+                  disabled={blueprintLoading}
+                  style={{
+                    background: blueprintLoading ? '#888' : '#0a0a0a',
+                    color: '#fff', border: 'none', padding: '12px 28px',
+                    fontSize: '14px', fontWeight: '600', borderRadius: '10px',
+                    cursor: blueprintLoading ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '8px'
+                  }}
+                >
+                  {blueprintLoading ? (
+                    <>
+                      <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span>
+                      Building Blueprint...
+                    </>
+                  ) : (
+                    'Generate Blueprint →'
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Blueprint editor */}
+        {step === 2 && blueprint && !approved && (
+          <div style={{ maxWidth: '900px', margin: '24px auto 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+              <div style={{
+                width: '28px', height: '28px', borderRadius: '50%',
+                background: '#0a0a0a', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', fontSize: '14px'
+              }}>🗺️</div>
+              <span style={{ fontSize: '15px', fontWeight: '700', color: '#0a0a0a' }}>
+                Your App Blueprint
+              </span>
+              <span style={{ fontSize: '12px', color: '#888' }}>
+                Edit anything before approving
+              </span>
+            </div>
+            <BlueprintEditor blueprint={blueprint} onApprove={handleApprove} />
+          </div>
+        )}
+
+        {/* Approved */}
+        {approved && (
+          <div style={{
+            maxWidth: '500px', margin: '40px auto', textAlign: 'center',
+            background: '#f0fdf4', border: '1px solid #bbf7d0',
+            borderRadius: '16px', padding: '48px 32px'
+          }}>
+            <div style={{ fontSize: '52px', marginBottom: '16px' }}>🎉</div>
+            <h2 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px', color: '#0a0a0a' }}>
+              Blueprint Approved!
+            </h2>
+            <p style={{ color: '#555', fontSize: '14px', marginBottom: '28px', lineHeight: '1.6' }}>
+              Your app plan is locked in. The next step is Risk Radar analysis followed by code generation with the Multi-Agent Build Squad.
+            </p>
             <button
-              onClick={handleGenerateBlueprint}
-              disabled={blueprintLoading || loading}
+              onClick={reset}
               style={{
-                background: blueprintLoading ? '#999' : '#1a1a1a', color: '#fff',
-                border: 'none', padding: '11px 24px', fontSize: '14px',
-                borderRadius: '8px', cursor: blueprintLoading ? 'not-allowed' : 'pointer'
+                background: '#0a0a0a', color: '#fff', border: 'none',
+                padding: '10px 24px', borderRadius: '8px',
+                fontSize: '14px', fontWeight: '500', cursor: 'pointer'
               }}
             >
-              {blueprintLoading ? 'Building Blueprint...' : 'Generate Blueprint →'}
+              Start a new project
             </button>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
-      {/* Step 3: Blueprint Editor */}
-      {blueprint && !approved && (
-        <div>
-          <label style={{ fontSize: '13px', fontWeight: '500', color: '#333', display: 'block', marginBottom: '10px' }}>
-            Step 3 — Edit your Blueprint
-          </label>
-          <BlueprintEditor blueprint={blueprint} onApprove={handleApprove} />
-        </div>
-      )}
-
-      {/* Approved state */}
-      {approved && (
+      {/* Fixed bottom input bar */}
+      {!approved && step < 2 && (
         <div style={{
-          textAlign: 'center', padding: '60px 20px',
-          background: '#f0fdf4', border: '1px solid #bbf7d0',
-          borderRadius: '12px'
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          padding: '16px 28px 24px',
+          background: 'linear-gradient(to top, #fff 70%, transparent)',
         }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎉</div>
-          <h2 style={{ fontSize: '22px', fontWeight: '600', marginBottom: '8px' }}>Blueprint Approved!</h2>
-          <p style={{ color: '#555', marginBottom: '24px' }}>
-            Your app plan is locked in. Next: Risk Radar analysis, then code generation.
-          </p>
-          <button
-            onClick={() => { setApproved(false); setBlueprint(null); setResearch(''); setDescription('') }}
-            style={{
-              background: 'none', border: '1px solid #ccc', padding: '8px 20px',
-              borderRadius: '8px', cursor: 'pointer', fontSize: '13px'
-            }}
-          >
-            Start a new project
-          </button>
+          <div style={{
+            maxWidth: '780px', margin: '0 auto',
+            background: '#fff', border: '1.5px solid #e5e5e5',
+            borderRadius: '14px', overflow: 'hidden',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.08)'
+          }}>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleResearch()
+                }
+              }}
+              placeholder="Describe your app idea... (e.g. A marketplace where farmers sell directly to consumers)"
+              style={{
+                width: '100%', minHeight: '80px', maxHeight: '180px',
+                padding: '16px 18px 8px', fontSize: '15px',
+                border: 'none', outline: 'none', resize: 'none',
+                fontFamily: 'inherit', color: '#0a0a0a', background: 'transparent',
+                boxSizing: 'border-box', lineHeight: '1.6'
+              }}
+            />
+            <div style={{
+              display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', padding: '8px 14px 12px'
+            }}>
+              <span style={{ fontSize: '12px', color: '#bbb' }}>
+                Press Enter to research · Shift+Enter for new line
+              </span>
+              <button
+                onClick={handleResearch}
+                disabled={loading || !description.trim()}
+                style={{
+                  background: loading || !description.trim() ? '#e5e5e5' : '#0a0a0a',
+                  color: loading || !description.trim() ? '#999' : '#fff',
+                  border: 'none', padding: '9px 20px', fontSize: '13px',
+                  fontWeight: '600', borderRadius: '9px',
+                  cursor: loading || !description.trim() ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                {loading ? 'Researching...' : 'Research →'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-    </main>
+    </div>
   )
 }
