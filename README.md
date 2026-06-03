@@ -4,7 +4,7 @@
 
 Atlas.AI is not just another AI code generator. It **researches your idea first**, builds a **visual plan you can edit**, then generates production-ready code using a **squad of specialized AI agents** — all the way to one-click deployment.
  
---- 
+---  
 
 ## What Makes Atlas Different
 
