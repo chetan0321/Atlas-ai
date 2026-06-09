@@ -26,7 +26,22 @@ export default function Sidebar() {
         setProjects(data || [])
       }
     }
+
     load()
+
+    // Listen for new projects in real time
+    const channel = supabase
+      .channel('projects-changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'projects'
+      }, () => {
+        load() // reload sidebar when a new project is saved
+      })
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
   }, [])
 
   async function handleSignOut() {

@@ -10,6 +10,7 @@ export default function BuildPage() {
   const [loading, setLoading] = useState(false)
   const [blueprintLoading, setBlueprintLoading] = useState(false)
   const [approved, setApproved] = useState(false)
+  const [savedProjectId, setSavedProjectId] = useState(null)
   const [step, setStep] = useState(0)
   // 0 = idle, 1 = researching/done, 2 = blueprint
 
@@ -61,9 +62,31 @@ export default function BuildPage() {
     }
   }
 
-  function handleApprove(finalBlueprint) {
+  async function handleApprove(finalBlueprint) {
     setBlueprint(finalBlueprint)
-    setApproved(true)
+
+    try {
+      const res = await fetch('/api/project/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description,
+          blueprint: finalBlueprint
+        })
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        setSavedProjectId(data.projectId)
+        setApproved(true)
+      } else {
+        alert('Failed to save project: ' + data.error)
+      }
+    } catch (error) {
+      console.error(error)
+      alert('Something went wrong saving the project.')
+    }
   }
 
   function reset() {
@@ -236,21 +259,36 @@ export default function BuildPage() {
           }}>
             <div style={{ fontSize: '52px', marginBottom: '16px' }}>🎉</div>
             <h2 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px', color: '#0a0a0a' }}>
-              Blueprint Approved!
+              Project Saved!
             </h2>
             <p style={{ color: '#555', fontSize: '14px', marginBottom: '28px', lineHeight: '1.6' }}>
-              Your app plan is locked in. The next step is Risk Radar analysis followed by code generation with the Multi-Agent Build Squad.
+              <strong>{blueprint?.projectName}</strong> has been saved to your projects.
+              Check the sidebar — it appears there now.
             </p>
-            <button
-              onClick={reset}
-              style={{
-                background: '#0a0a0a', color: '#fff', border: 'none',
-                padding: '10px 24px', borderRadius: '8px',
-                fontSize: '14px', fontWeight: '500', cursor: 'pointer'
-              }}
-            >
-              Start a new project
-            </button>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <a
+                href="/dashboard"
+                style={{
+                  background: '#0a0a0a', color: '#fff', border: 'none',
+                  padding: '10px 24px', borderRadius: '8px',
+                  fontSize: '14px', fontWeight: '600', cursor: 'pointer',
+                  textDecoration: 'none'
+                }}
+              >
+                View all projects →
+              </a>
+              <button
+                onClick={reset}
+                style={{
+                  background: '#fff', color: '#333',
+                  border: '1px solid #e5e5e5',
+                  padding: '10px 24px', borderRadius: '8px',
+                  fontSize: '14px', fontWeight: '500', cursor: 'pointer'
+                }}
+              >
+                Build another app
+              </button>
+            </div>
           </div>
         )}
       </div>
