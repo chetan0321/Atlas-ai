@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import BlueprintEditor from '@/components/blueprint/BlueprintEditor'
+import RiskReport from '@/components/risk/RiskReport'
 
 export default function BuildPage() {
   const [description, setDescription] = useState('')
@@ -12,6 +13,9 @@ export default function BuildPage() {
   const [approved, setApproved] = useState(false)
   const [savedProjectId, setSavedProjectId] = useState(null)
   const [step, setStep] = useState(0)
+  const [riskReport, setRiskReport] = useState(null)
+  const [riskLoading, setRiskLoading] = useState(false)
+  const [showRisk, setShowRisk] = useState(false)
   // 0 = idle, 1 = researching/done, 2 = blueprint
 
   async function handleResearch() {
@@ -64,29 +68,49 @@ export default function BuildPage() {
 
   async function handleApprove(finalBlueprint) {
     setBlueprint(finalBlueprint)
+    setRiskLoading(true)
+    setShowRisk(true)
 
+    try {
+      const res = await fetch('/api/risk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blueprint: finalBlueprint })
+      })
+      const data = await res.json()
+      if (data.riskReport) {
+        setRiskReport(data.riskReport)
+      }
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setRiskLoading(false)
+    }
+  }
+
+  async function handleRiskContinue() {
     try {
       const res = await fetch('/api/project/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description,
-          blueprint: finalBlueprint
-        })
+        body: JSON.stringify({ description, blueprint })
       })
-
       const data = await res.json()
-
       if (data.success) {
         setSavedProjectId(data.projectId)
         setApproved(true)
+        setShowRisk(false)
       } else {
         alert('Failed to save project: ' + data.error)
       }
     } catch (error) {
-      console.error(error)
       alert('Something went wrong saving the project.')
     }
+  }
+
+  function handleRiskBack() {
+    setShowRisk(false)
+    setRiskReport(null)
   }
 
   function reset() {
@@ -230,8 +254,26 @@ export default function BuildPage() {
           </div>
         )}
 
+        {/* Risk Radar */}
+        {showRisk && (
+          <div style={{ maxWidth: '900px', margin: '24px auto 0' }}>
+            {riskLoading ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔎</div>
+                <p style={{ color: '#888', fontSize: '14px' }}>Running Risk Radar analysis...</p>
+              </div>
+            ) : riskReport ? (
+              <RiskReport
+                report={riskReport}
+                onContinue={handleRiskContinue}
+                onBack={handleRiskBack}
+              />
+            ) : null}
+          </div>
+        )}
+
         {/* Blueprint editor */}
-        {step === 2 && blueprint && !approved && (
+        {step === 2 && blueprint && !approved && !showRisk && (
           <div style={{ maxWidth: '900px', margin: '24px auto 0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
               <div style={{
