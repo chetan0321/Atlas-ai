@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import BlueprintEditor from '@/components/blueprint/BlueprintEditor'
 import RiskReport from '@/components/risk/RiskReport'
+import IntentGraph from '@/components/blueprint/IntentGraph'
 
 export default function BuildPage() {
   const [description, setDescription] = useState('')
@@ -16,6 +17,8 @@ export default function BuildPage() {
   const [riskReport, setRiskReport] = useState(null)
   const [riskLoading, setRiskLoading] = useState(false)
   const [showRisk, setShowRisk] = useState(false)
+  const [blueprintView, setBlueprintView] = useState('text') // 'text' or 'graph'
+  const [graphData, setGraphData] = useState(null)
   // 0 = idle, 1 = researching/done, 2 = blueprint
 
   async function handleResearch() {
@@ -275,7 +278,8 @@ export default function BuildPage() {
         {/* Blueprint editor */}
         {step === 2 && blueprint && !approved && !showRisk && (
           <div style={{ maxWidth: '900px', margin: '24px auto 0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
               <div style={{
                 width: '28px', height: '28px', borderRadius: '50%',
                 background: '#0a0a0a', display: 'flex', alignItems: 'center',
@@ -284,11 +288,52 @@ export default function BuildPage() {
               <span style={{ fontSize: '15px', fontWeight: '700', color: '#0a0a0a' }}>
                 Your App Blueprint
               </span>
-              <span style={{ fontSize: '12px', color: '#888' }}>
-                Edit anything before approving
-              </span>
+
+              {/* View toggle */}
+              <div style={{
+                display: 'flex', background: '#f3f4f6', borderRadius: '8px',
+                padding: '3px', marginLeft: 'auto'
+              }}>
+                <button
+                  onClick={() => setBlueprintView('text')}
+                  style={{
+                    padding: '6px 14px', borderRadius: '6px', fontSize: '12px',
+                    fontWeight: '600', border: 'none', cursor: 'pointer',
+                    background: blueprintView === 'text' ? '#fff' : 'transparent',
+                    color: blueprintView === 'text' ? '#0a0a0a' : '#888',
+                    boxShadow: blueprintView === 'text' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none'
+                  }}
+                >
+                  📝 Text View
+                </button>
+                <button
+                  onClick={() => setBlueprintView('graph')}
+                  style={{
+                    padding: '6px 14px', borderRadius: '6px', fontSize: '12px',
+                    fontWeight: '600', border: 'none', cursor: 'pointer',
+                    background: blueprintView === 'graph' ? '#fff' : 'transparent',
+                    color: blueprintView === 'graph' ? '#0a0a0a' : '#888',
+                    boxShadow: blueprintView === 'graph' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none'
+                  }}
+                >
+                  🔗 Graph View
+                </button>
+              </div>
             </div>
-            <BlueprintEditor blueprint={blueprint} onApprove={handleApprove} />
+
+            {blueprintView === 'text' ? (
+              <BlueprintEditor blueprint={blueprint} onApprove={handleApprove} />
+            ) : (
+              <IntentGraph
+                blueprint={blueprint}
+                onConfirm={(graph) => {
+                  setGraphData(graph)
+                  setBlueprintView('text')
+                  alert('Graph saved! Switch back to Text View to approve and continue.')
+                }}
+              />
+            )}
+
           </div>
         )}
 
