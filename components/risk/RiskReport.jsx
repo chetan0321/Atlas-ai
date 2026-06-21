@@ -155,18 +155,13 @@ export default function RiskReport({ report, onContinue, onBack }) {
         </button>
         <button
           onClick={onContinue}
-          disabled={highRiskCount > 0 && !allHighRiskDismissed}
           style={{
-            background: (highRiskCount > 0 && !allHighRiskDismissed) ? '#e5e5e5' : '#0a0a0a',
-            color: (highRiskCount > 0 && !allHighRiskDismissed) ? '#999' : '#fff',
+            background: '#0a0a0a', color: '#fff',
             border: 'none', padding: '11px 28px', borderRadius: '9px',
-            fontSize: '13px', fontWeight: '700',
-            cursor: (highRiskCount > 0 && !allHighRiskDismissed) ? 'not-allowed' : 'pointer'
+            fontSize: '13px', fontWeight: '700', cursor: 'pointer'
           }}
         >
-          {highRiskCount > 0 && !allHighRiskDismissed
-            ? `Dismiss ${highRiskCount} high-risk item${highRiskCount > 1 ? 's' : ''} to continue`
-            : 'Continue to Code Generation →'}
+          Save to Dashboard →
         </button>
       </div>
 

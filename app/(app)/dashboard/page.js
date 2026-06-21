@@ -59,27 +59,29 @@ export default async function Dashboard() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
             {projects.map(project => (
-              <div key={project.id} style={{
-                background: '#fff', border: '1px solid #eee', borderRadius: '12px',
-                padding: '18px', cursor: 'pointer'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                  <h3 style={{ fontSize: '15px', fontWeight: '600' }}>{project.name}</h3>
-                  <span style={{
-                    fontSize: '11px', padding: '2px 8px', borderRadius: '8px',
-                    background: project.status === 'draft' ? '#f3f4f6' : '#dcfce7',
-                    color: project.status === 'draft' ? '#666' : '#16a34a'
-                  }}>
-                    {project.status}
-                  </span>
+              <Link key={project.id} href={`/build?id=${project.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                <div style={{
+                  background: '#fff', border: '1px solid #eee', borderRadius: '12px',
+                  padding: '18px', cursor: 'pointer'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: '600' }}>{project.name}</h3>
+                    <span style={{
+                      fontSize: '11px', padding: '2px 8px', borderRadius: '8px',
+                      background: project.status === 'draft' ? '#f3f4f6' : '#dcfce7',
+                      color: project.status === 'draft' ? '#666' : '#16a34a'
+                    }}>
+                      {project.status}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '13px', color: '#888', marginBottom: '10px', lineHeight: '1.5' }}>
+                    {project.description?.slice(0, 80)}...
+                  </p>
+                  <p style={{ fontSize: '11px', color: '#bbb' }}>
+                    {new Date(project.created_at).toLocaleDateString()}
+                  </p>
                 </div>
-                <p style={{ fontSize: '13px', color: '#888', marginBottom: '10px', lineHeight: '1.5' }}>
-                  {project.description?.slice(0, 80)}...
-                </p>
-                <p style={{ fontSize: '11px', color: '#bbb' }}>
-                  {new Date(project.created_at).toLocaleDateString()}
-                </p>
-              </div>
+              </Link>
             ))}
           </div>
         )}

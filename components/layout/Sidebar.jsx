@@ -118,29 +118,31 @@ export default function Sidebar() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
             {projects.map(p => (
-              <div key={p.id} style={{
-                padding: '8px 10px', borderRadius: '7px',
-                cursor: 'pointer', transition: 'background 0.15s',
-              }}
-                onMouseEnter={e => e.currentTarget.style.background = '#1a1a1a'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                  <div style={{
-                    width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0,
-                    background: statusColors[p.status] || '#444'
-                  }} />
-                  <span style={{
-                    fontSize: '13px', color: '#ccc', fontWeight: '500',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                  }}>
-                    {p.name}
-                  </span>
+              <Link key={p.id} href={`/build?id=${p.id}`} style={{ textDecoration: 'none' }}>
+                <div style={{
+                  padding: '8px 10px', borderRadius: '7px',
+                  cursor: 'pointer', transition: 'background 0.15s',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#1a1a1a'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                    <div style={{
+                      width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0,
+                      background: statusColors[p.status] || '#444'
+                    }} />
+                    <span style={{
+                      fontSize: '13px', color: '#ccc', fontWeight: '500',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                    }}>
+                      {p.name}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#555', marginTop: '2px', paddingLeft: '13px' }}>
+                    {new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </div>
                 </div>
-                <div style={{ fontSize: '11px', color: '#555', marginTop: '2px', paddingLeft: '13px' }}>
-                  {new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
