@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server'
 import Groq from 'groq-sdk'
+import { createClient } from '@/lib/supabase/server'
 
 const client = new Groq({
   apiKey: process.env.GROQ_API_KEY
 })
 
 export async function POST(request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const { description, research } = await request.json()
 

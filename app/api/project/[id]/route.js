@@ -6,8 +6,17 @@ export async function GET(request, { params }) {
     const supabase = await createClient()
     const { id } = await params
 
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { data: project } = await supabase
       .from('projects').select('*').eq('id', id).single()
+
+    if (!project || project.user_id !== user.id) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
 
     const { data: blueprint } = await supabase
       .from('blueprints').select('*').eq('project_id', id)

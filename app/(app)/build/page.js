@@ -26,6 +26,7 @@ function BuildPageInner() {
   const [loading, setLoading] = useState(false)
   const [blueprintLoading, setBlueprintLoading] = useState(false)
   const [riskLoading, setRiskLoading] = useState(false)
+  const [riskError, setRiskError] = useState(false)
   const [resuming, setResuming] = useState(!!existingId)
 
   // ── Resume an existing project ──
@@ -133,7 +134,6 @@ function BuildPageInner() {
   async function handleApprove(finalBlueprint) {
     setBlueprint(finalBlueprint)
 
-    // Save the latest edited blueprint first
     const saveRes = await fetch('/api/project/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -144,6 +144,7 @@ function BuildPageInner() {
     setBlueprintId(currentBlueprintId)
 
     setRiskLoading(true)
+    setRiskError(false)
     setStage('risk')
     try {
       const res = await fetch('/api/risk', {
@@ -151,6 +152,7 @@ function BuildPageInner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ blueprint: finalBlueprint })
       })
+      if (!res.ok) throw new Error('Risk analysis failed')
       const data = await res.json()
       if (data.riskReport) {
         setRiskReport(data.riskReport)
@@ -161,7 +163,12 @@ function BuildPageInner() {
             action: 'risk', projectId, blueprintId: currentBlueprintId, riskReport: data.riskReport
           })
         })
+      } else {
+        throw new Error('No risk report returned')
       }
+    } catch (err) {
+      console.error(err)
+      setRiskError(true)
     } finally {
       setRiskLoading(false)
     }
@@ -393,6 +400,29 @@ function BuildPageInner() {
               <div style={{ textAlign: 'center', padding: '60px 20px' }}>
                 <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔎</div>
                 <p style={{ color: '#888', fontSize: '14px' }}>Running Risk Radar analysis...</p>
+              </div>
+            ) : riskError ? (
+              <div style={{
+                textAlign: 'center', padding: '60px 20px',
+                background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '14px'
+              }}>
+                <div style={{ fontSize: '32px', marginBottom: '12px' }}>⚠️</div>
+                <p style={{ color: '#dc2626', fontSize: '14px', fontWeight: '600', marginBottom: '6px' }}>
+                  Risk analysis failed
+                </p>
+                <p style={{ color: '#888', fontSize: '13px', marginBottom: '20px' }}>
+                  Something went wrong reaching the AI service. Please try again.
+                </p>
+                <button
+                  onClick={() => handleApprove(blueprint)}
+                  style={{
+                    background: '#0a0a0a', color: '#fff', border: 'none',
+                    padding: '10px 24px', borderRadius: '9px',
+                    fontSize: '13px', fontWeight: '600', cursor: 'pointer'
+                  }}
+                >
+                  Retry Analysis
+                </button>
               </div>
             ) : riskReport ? (
               <RiskReport report={riskReport} onContinue={handleSaveToDashboard} onBack={handleRiskBack} />
