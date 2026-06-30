@@ -20,11 +20,11 @@ export default async function Dashboard() {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
           <div>
-            <h1 style={{ fontSize: '26px', fontWeight: '700', marginBottom: '4px' }}>
-              Atlas.AI
+            <h1 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '4px', color: '#0a0a0a' }}>
+              Welcome back, {user.user_metadata?.full_name || user.email.split('@')[0]}
             </h1>
             <p style={{ color: '#888', fontSize: '14px' }}>
-              Welcome back, {user.email}
+              Here's what you've been building
             </p>
           </div>
           <Link href="/build" style={{
@@ -75,7 +75,9 @@ export default async function Dashboard() {
                     </span>
                   </div>
                   <p style={{ fontSize: '13px', color: '#888', marginBottom: '10px', lineHeight: '1.5' }}>
-                    {project.description?.slice(0, 80)}...
+                    {project.description?.length > 80
+                      ? project.description.slice(0, 80) + '…'
+                      : project.description}
                   </p>
                   <p style={{ fontSize: '11px', color: '#bbb' }}>
                     {new Date(project.created_at).toLocaleDateString()}

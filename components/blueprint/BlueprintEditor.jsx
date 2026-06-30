@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { nanoid } from 'nanoid'
 
 const SECTION_CONFIG = {
   pages: {
@@ -57,7 +58,16 @@ const TIER_INFO = {
 }
 
 export default function BlueprintEditor({ blueprint, onApprove }) {
-  const [data, setData] = useState(blueprint)
+  const [data, setData] = useState(() => {
+    const withIds = { ...blueprint }
+    for (const section of Object.keys(SECTION_CONFIG)) {
+      withIds[section] = (blueprint[section] || []).map(item => ({
+        ...item,
+        id: item.id || nanoid()
+      }))
+    }
+    return withIds
+  })
   const [editingName, setEditingName] = useState(false)
   const [editingDesc, setEditingDesc] = useState(false)
 
@@ -80,7 +90,7 @@ export default function BlueprintEditor({ blueprint, onApprove }) {
   function addItem(section) {
     setData(prev => ({
       ...prev,
-      [section]: [...prev[section], { ...SECTION_CONFIG[section].empty }]
+      [section]: [...prev[section], { ...SECTION_CONFIG[section].empty, id: nanoid() }]
     }))
   }
 
@@ -248,7 +258,7 @@ export default function BlueprintEditor({ blueprint, onApprove }) {
           onAdd={() => addItem('pages')}
         >
           {data.pages.map((item, i) => (
-            <ItemCard key={i} color={SECTION_CONFIG.pages.border} onDelete={() => deleteItem('pages', i)}>
+            <ItemCard key={item.id} color={SECTION_CONFIG.pages.border} onDelete={() => deleteItem('pages', i)}>
               <Field label="Page name" value={item.name}
                 onChange={v => updateField('pages', i, 'name', v)} />
               <Field label="Description" value={item.description}
@@ -264,7 +274,7 @@ export default function BlueprintEditor({ blueprint, onApprove }) {
           onAdd={() => addItem('features')}
         >
           {data.features.map((item, i) => (
-            <ItemCard key={i} color={SECTION_CONFIG.features.border} onDelete={() => deleteItem('features', i)}>
+            <ItemCard key={item.id} color={SECTION_CONFIG.features.border} onDelete={() => deleteItem('features', i)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <span style={{
                   fontSize: '11px', fontWeight: '700', padding: '3px 9px',
@@ -302,7 +312,7 @@ export default function BlueprintEditor({ blueprint, onApprove }) {
           onAdd={() => addItem('apiRoutes')}
         >
           {data.apiRoutes.map((item, i) => (
-            <ItemCard key={i} color={SECTION_CONFIG.apiRoutes.border} onDelete={() => deleteItem('apiRoutes', i)}>
+            <ItemCard key={item.id} color={SECTION_CONFIG.apiRoutes.border} onDelete={() => deleteItem('apiRoutes', i)}>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '10px' }}>
                 <span style={{
                   fontSize: '11px', fontWeight: '700', padding: '4px 8px',
@@ -340,7 +350,7 @@ export default function BlueprintEditor({ blueprint, onApprove }) {
           onAdd={() => addItem('dbTables')}
         >
           {data.dbTables.map((table, ti) => (
-            <ItemCard key={ti} color={SECTION_CONFIG.dbTables.border} onDelete={() => deleteItem('dbTables', ti)} wide>
+            <ItemCard key={table.id} color={SECTION_CONFIG.dbTables.border} onDelete={() => deleteItem('dbTables', ti)} wide>
               <Field label="Table name" value={table.name}
                 onChange={v => updateField('dbTables', ti, 'name', v)} mono />
 

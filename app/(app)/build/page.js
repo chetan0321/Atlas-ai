@@ -27,6 +27,7 @@ function BuildPageInner() {
   const [blueprintLoading, setBlueprintLoading] = useState(false)
   const [riskLoading, setRiskLoading] = useState(false)
   const [riskError, setRiskError] = useState(false)
+  const [researchError, setResearchError] = useState(false)
   const [resuming, setResuming] = useState(!!existingId)
 
   // ── Resume an existing project ──
@@ -65,6 +66,7 @@ function BuildPageInner() {
     setResearch('')
     setBlueprint(null)
     setRiskReport(null)
+    setResearchError(false)
     setLoading(true)
     setStage('research')
 
@@ -97,7 +99,7 @@ function BuildPageInner() {
       }
 
     } catch {
-      setResearch('Error connecting to AI. Check your GROQ_API_KEY.')
+      setResearchError(true)
     } finally {
       setLoading(false)
     }
@@ -303,6 +305,27 @@ function BuildPageInner() {
                 {loading && <span style={{ fontSize: '12px', color: '#888', fontStyle: 'italic' }}>researching...</span>}
               </div>
 
+              {researchError && (
+                <div style={{
+                  background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px',
+                  padding: '14px 18px', marginBottom: '16px', textAlign: 'center'
+                }}>
+                  <p style={{ color: '#dc2626', fontSize: '13px', fontWeight: '600', margin: 0 }}>
+                    Something went wrong researching your idea. Please try again.
+                  </p>
+                  <button
+                    onClick={handleResearch}
+                    style={{
+                      marginTop: '10px', background: '#0a0a0a', color: '#fff', border: 'none',
+                      padding: '7px 18px', borderRadius: '7px', fontSize: '12px',
+                      fontWeight: '600', cursor: 'pointer'
+                    }}
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
+
               <div style={{
                 background: '#f5f5f5', borderRadius: '12px 12px 4px 12px',
                 padding: '12px 16px', marginBottom: '16px',
@@ -387,7 +410,6 @@ function BuildPageInner() {
                 blueprint={blueprint}
                 onConfirm={() => {
                   setBlueprintView('text')
-                  alert('Graph saved! Switch back to Text View to approve and continue.')
                 }}
               />
             )}

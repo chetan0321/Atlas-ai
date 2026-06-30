@@ -22,6 +22,7 @@ function GraphInner({ blueprint, onConfirm }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges)
   const [nodeIdCounter, setNodeIdCounter] = useState(1000)
+  const [confirmedFlash, setConfirmedFlash] = useState(false)
 
   const onConnect = useCallback(
     params => setEdges(eds => addEdge(params, eds)),
@@ -50,6 +51,8 @@ function GraphInner({ blueprint, onConfirm }) {
 
   function handleConfirm() {
     onConfirm({ nodes, edges })
+    setConfirmedFlash(true)
+    setTimeout(() => setConfirmedFlash(false), 2000)
   }
 
   return (
@@ -91,7 +94,7 @@ function GraphInner({ blueprint, onConfirm }) {
           </ReactFlow>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
           <button onClick={handleConfirm} style={{
             background: '#0a0a0a', color: '#fff', border: 'none',
             padding: '11px 28px', borderRadius: '9px',
@@ -99,6 +102,14 @@ function GraphInner({ blueprint, onConfirm }) {
           }}>
             Confirm Graph →
           </button>
+          {confirmedFlash && (
+            <span style={{
+              fontSize: '12px', color: '#16a34a', fontWeight: '600',
+              animation: 'fadeIn 0.2s'
+            }}>
+              ✓ Graph saved — switch to Text View to approve
+            </span>
+          )}
         </div>
 
       </div>
