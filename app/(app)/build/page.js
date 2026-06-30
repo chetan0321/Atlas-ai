@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import BlueprintEditor from '@/components/blueprint/BlueprintEditor'
 import IntentGraph from '@/components/blueprint/IntentGraph'
 import RiskReport from '@/components/risk/RiskReport'
+import { Globe, Search, Map } from 'lucide-react'
 
 function BuildPageInner() {
   const searchParams = useSearchParams()
@@ -282,7 +283,7 @@ function BuildPageInner() {
             alignItems: 'center', justifyContent: 'center',
             minHeight: '60vh', textAlign: 'center'
           }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🌍</div>
+            <Globe size={44} strokeWidth={1.5} color="#0a0a0a" style={{ marginBottom: '16px' }} />
             <h2 style={{ fontSize: '28px', fontWeight: '800', color: '#0a0a0a', marginBottom: '10px' }}>
               What are you building today?
             </h2>
@@ -299,8 +300,8 @@ function BuildPageInner() {
                 <div style={{
                   width: '28px', height: '28px', borderRadius: '50%',
                   background: '#0a0a0a', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontSize: '14px'
-                }}>🔍</div>
+                  justifyContent: 'center'
+                }}><Search size={14} color="#fff" /></div>
                 <span style={{ fontSize: '15px', fontWeight: '700', color: '#0a0a0a' }}>Research Brief</span>
                 {loading && <span style={{ fontSize: '12px', color: '#888', fontStyle: 'italic' }}>researching...</span>}
               </div>
@@ -368,8 +369,8 @@ function BuildPageInner() {
               <div style={{
                 width: '28px', height: '28px', borderRadius: '50%',
                 background: '#0a0a0a', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', fontSize: '14px'
-              }}>🗺️</div>
+                justifyContent: 'center'
+              }}><Map size={14} color="#fff" /></div>
               <span style={{ fontSize: '15px', fontWeight: '700', color: '#0a0a0a' }}>Your App Blueprint</span>
 
               <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: '8px', padding: '3px', marginLeft: 'auto' }}>

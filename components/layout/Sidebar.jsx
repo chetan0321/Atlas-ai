@@ -1,16 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { Plus, LayoutGrid } from 'lucide-react'
 
-export default function Sidebar() {
+function SidebarInner() {
   const [projects, setProjects] = useState([])
   const [user, setUser] = useState(null)
-  const supabase = createClient()
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false)
+  const supabase = useMemo(() => createClient(), [])
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const activeProjectId = searchParams.get('id')
 
   useEffect(() => {
     async function load() {
@@ -29,22 +33,27 @@ export default function Sidebar() {
 
     load()
 
-    // Listen for new projects in real time
+    // Listen for all project changes in real time (insert, update, delete)
     const channel = supabase
       .channel('projects-changes')
       .on('postgres_changes', {
-        event: 'INSERT',
+        event: '*',
         schema: 'public',
         table: 'projects'
       }, () => {
-        load() // reload sidebar when a new project is saved
+        load()
       })
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [])
+  }, [supabase])
 
   async function handleSignOut() {
+    if (!confirmingSignOut) {
+      setConfirmingSignOut(true)
+      setTimeout(() => setConfirmingSignOut(false), 3000)
+      return
+    }
     await supabase.auth.signOut()
     router.push('/login')
   }
@@ -81,7 +90,7 @@ export default function Sidebar() {
           padding: '9px 14px', fontSize: '13px', fontWeight: '600',
           textDecoration: 'none', transition: 'opacity 0.15s'
         }}>
-          <span style={{ fontSize: '16px', lineHeight: 1 }}>+</span>
+          <Plus size={15} strokeWidth={2.5} />
           New Project
         </Link>
       </div>
@@ -95,7 +104,7 @@ export default function Sidebar() {
           background: pathname === '/dashboard' ? '#1a1a1a' : 'transparent',
           textDecoration: 'none', fontWeight: '500'
         }}>
-          <span>⊞</span> Dashboard
+          <LayoutGrid size={14} /> Dashboard
         </Link>
       </div>
 
@@ -117,33 +126,37 @@ export default function Sidebar() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            {projects.map(p => (
-              <Link key={p.id} href={`/build?id=${p.id}`} style={{ textDecoration: 'none' }}>
-                <div style={{
-                  padding: '8px 10px', borderRadius: '7px',
-                  cursor: 'pointer', transition: 'background 0.15s',
-                }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#1a1a1a'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                    <div style={{
-                      width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0,
-                      background: statusColors[p.status] || '#444'
-                    }} />
-                    <span style={{
-                      fontSize: '13px', color: '#ccc', fontWeight: '500',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                    }}>
-                      {p.name}
-                    </span>
+            {projects.map(p => {
+              const isActive = p.id === activeProjectId
+              return (
+                <Link key={p.id} href={`/build?id=${p.id}`} style={{ textDecoration: 'none' }}>
+                  <div style={{
+                    padding: '8px 10px', borderRadius: '7px',
+                    cursor: 'pointer', transition: 'background 0.15s',
+                    background: isActive ? '#1a1a1a' : 'transparent'
+                  }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#141414' }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                      <div style={{
+                        width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0,
+                        background: statusColors[p.status] || '#444'
+                      }} />
+                      <span style={{
+                        fontSize: '13px', color: isActive ? '#fff' : '#ccc', fontWeight: isActive ? '600' : '500',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                      }}>
+                        {p.name}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#555', marginTop: '2px', paddingLeft: '13px' }}>
+                      {new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#555', marginTop: '2px', paddingLeft: '13px' }}>
-                    {new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              )
+            })}
           </div>
         )}
       </div>
@@ -160,16 +173,27 @@ export default function Sidebar() {
         <button
           onClick={handleSignOut}
           style={{
-            width: '100%', background: 'none', border: '1px solid #222',
-            color: '#666', padding: '8px', borderRadius: '7px',
+            width: '100%',
+            background: confirmingSignOut ? '#dc2626' : 'none',
+            border: confirmingSignOut ? '1px solid #dc2626' : '1px solid #222',
+            color: confirmingSignOut ? '#fff' : '#666',
+            padding: '8px', borderRadius: '7px',
             fontSize: '12px', cursor: 'pointer', textAlign: 'left',
-            paddingLeft: '12px'
+            paddingLeft: '12px', transition: 'all 0.15s'
           }}
         >
-          Sign out
+          {confirmingSignOut ? 'Click again to confirm' : 'Sign out'}
         </button>
       </div>
 
     </div>
+  )
+}
+
+export default function Sidebar() {
+  return (
+    <Suspense fallback={<div style={{ width: '260px', background: '#0a0a0a', height: '100vh' }} />}>
+      <SidebarInner />
+    </Suspense>
   )
 }
