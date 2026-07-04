@@ -197,7 +197,6 @@ export default function DashboardClient({ projects, displayName, userEmail, depl
           <div className="dash-stats" style={{ display: 'flex', gap: '10px', marginBottom: '36px', flexWrap: 'wrap' }}>
             {[
               { label: 'Total projects', value: projects.length, icon: '📁' },
-              { label: 'Risk analysed',  value: projects.filter(p => p.status === 'risk' || p.current_step === 'risk').length, icon: '🛡️' },
               { label: 'Live',           value: deployed, icon: '🟢' },
               { label: 'In progress',    value: inProgress, icon: '⚙️' }
             ].map((s, i) => (

@@ -82,8 +82,14 @@ function SidebarInner() {
 
   const navigate = useCallback((href, key) => {
     setNavigatingTo(key)
-    router.push(href)
-  }, [router])
+    // For /build (new project): if already on the build page, router.push('/build') is a same-route
+    // update and won't remount. Force a true navigation via window.location to guarantee fresh state.
+    if (href === '/build' && pathname.startsWith('/build')) {
+      window.location.href = '/build'
+    } else {
+      router.push(href)
+    }
+  }, [router, pathname])
 
   // Prefetch key routes for instant navigation
   useEffect(() => {
