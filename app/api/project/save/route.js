@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 export async function POST(request) {
@@ -60,22 +61,27 @@ export async function POST(request) {
 
     // ── Save risk stage ──
     if (action === 'risk') {
-      await supabase.from('projects').update({ current_step: 'risk' }).eq('id', projectId)
+      // Update project step AND status so dashboard shows the Risk badge
+      await supabase.from('projects').update({ current_step: 'risk', status: 'risk' }).eq('id', projectId)
 
-      const { data: existing } = await supabase
+      // Use admin client to bypass RLS on risk_reports table
+      const admin = createAdminClient()
+
+      const { data: existing } = await admin
         .from('risk_reports')
         .select('id')
         .eq('blueprint_id', blueprintId)
         .maybeSingle()
 
       if (existing) {
-        await supabase.from('risk_reports').update({ report: riskReport }).eq('id', existing.id)
+        const { error } = await admin.from('risk_reports').update({ report: riskReport }).eq('id', existing.id)
+        if (error) { console.error('Risk update error:', error); throw error }
         return NextResponse.json({ riskReportId: existing.id })
       } else {
-        const { data, error } = await supabase.from('risk_reports').insert({
+        const { data, error } = await admin.from('risk_reports').insert({
           project_id: projectId, blueprint_id: blueprintId, report: riskReport
         }).select().single()
-        if (error) throw error
+        if (error) { console.error('Risk insert error:', error); throw error }
         return NextResponse.json({ riskReportId: data.id })
       }
     }

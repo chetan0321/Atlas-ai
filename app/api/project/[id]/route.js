@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 export async function GET(request, { params }) {
@@ -24,7 +25,9 @@ export async function GET(request, { params }) {
 
     let riskReport = null
     if (blueprint) {
-      const { data } = await supabase
+      // Use admin client to bypass RLS on risk_reports (same as save route)
+      const admin = createAdminClient()
+      const { data } = await admin
         .from('risk_reports').select('*').eq('blueprint_id', blueprint.id).maybeSingle()
       riskReport = data
     }

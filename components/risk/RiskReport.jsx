@@ -3,9 +3,9 @@
 import { useState } from 'react'
 
 const SEVERITY_STYLES = {
-  high:   { bg: '#fee2e2', color: '#dc2626', label: 'HIGH RISK', border: '#fecaca' },
-  medium: { bg: '#fef9c3', color: '#854d0e', label: 'MEDIUM RISK', border: '#fde68a' },
-  low:    { bg: '#dcfce7', color: '#15803d', label: 'LOW RISK', border: '#bbf7d0' }
+  high:   { bg: 'rgba(239,68,68,0.15)',  color: '#f87171', border: 'rgba(239,68,68,0.3)',  label: 'HIGH RISK' },
+  medium: { bg: 'rgba(234,179,8,0.15)', color: '#facc15', border: 'rgba(234,179,8,0.3)', label: 'MEDIUM RISK' },
+  low:    { bg: 'rgba(34,197,94,0.15)', color: '#4ade80', border: 'rgba(34,197,94,0.3)', label: 'LOW RISK' }
 }
 
 export default function RiskReport({ report, onContinue, onBack }) {
@@ -24,55 +24,45 @@ export default function RiskReport({ report, onContinue, onBack }) {
     ...(report.accessibility_issues || [])
   ].filter(i => i.severity === 'high').length
 
-  const allHighRiskDismissed = [
-    ...(report.security_issues || []).map((item, i) => `security-${i}`),
-    ...(report.accessibility_issues || []).map((item, i) => `access-${i}`)
-  ]
-    .filter((key, idx) => {
-      const allItems = [...(report.security_issues || []), ...(report.accessibility_issues || [])]
-      return allItems[idx]?.severity === 'high'
-    })
-    .every(key => dismissed.has(key))
-
   return (
     <div style={{ maxWidth: '780px', margin: '0 auto' }}>
 
-      {/* Header */}
+      {/* Header banner */}
       <div style={{
-        background: highRiskCount > 0 ? '#fef2f2' : '#f0fdf4',
-        border: `1px solid ${highRiskCount > 0 ? '#fecaca' : '#bbf7d0'}`,
-        borderRadius: '14px', padding: '20px 24px', marginBottom: '20px'
+        background: highRiskCount > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.1)',
+        border: `1px solid ${highRiskCount > 0 ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`,
+        borderRadius: '14px', padding: '18px 22px', marginBottom: '16px',
+        display: 'flex', alignItems: 'center', gap: '12px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-          <span style={{ fontSize: '22px' }}>{highRiskCount > 0 ? '⚠️' : '✅'}</span>
-          <h2 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#0a0a0a' }}>
+        <span style={{ fontSize: '22px' }}>{highRiskCount > 0 ? '⚠️' : '✅'}</span>
+        <div>
+          <h2 style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#fff' }}>
             Risk Radar Report
           </h2>
+          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', margin: '3px 0 0' }}>
+            {highRiskCount > 0
+              ? `${highRiskCount} high-severity issue${highRiskCount > 1 ? 's' : ''} found. Review before generating code.`
+              : 'No high-severity issues found. You can proceed safely.'}
+          </p>
         </div>
-        <p style={{ fontSize: '13px', color: '#666', margin: 0 }}>
-          {highRiskCount > 0
-            ? `${highRiskCount} high-severity issue${highRiskCount > 1 ? 's' : ''} found. Review before generating code.`
-            : 'No high-severity issues found. You can proceed safely.'}
-        </p>
       </div>
 
       {/* Cost estimate */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: '#fff', border: '1px solid #e5e5e5', borderRadius: '12px',
-        padding: '16px 20px', marginBottom: '16px'
+        background: '#15151f', border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: '12px', padding: '16px 20px', marginBottom: '16px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '20px' }}>💰</span>
           <div>
-            <div style={{ fontSize: '13px', fontWeight: '600', color: '#0a0a0a' }}>
-              Estimated Monthly Cost
-            </div>
-            <div style={{ fontSize: '11px', color: '#888' }}>Based on tier + features</div>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>Estimated Monthly Cost</div>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)' }}>Based on tier + features</div>
           </div>
         </div>
-        <div style={{ fontSize: '24px', fontWeight: '800', color: '#0a0a0a' }}>
-          ${report.cost_estimate_usd_per_month}<span style={{ fontSize: '13px', color: '#888', fontWeight: '500' }}>/mo</span>
+        <div style={{ fontSize: '26px', fontWeight: '800', color: '#fff' }}>
+          ${report.cost_estimate_usd_per_month}
+          <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', fontWeight: '500' }}>/mo</span>
         </div>
       </div>
 
@@ -81,15 +71,12 @@ export default function RiskReport({ report, onContinue, onBack }) {
         <RiskSection title="Security Issues" icon="🔒">
           {report.security_issues.map((item, i) => {
             const key = `security-${i}`
-            const style = SEVERITY_STYLES[item.severity] || SEVERITY_STYLES.low
-            const isDismissed = dismissed.has(key)
             return (
               <RiskCard
                 key={key}
-                style={style}
-                issue={item.issue}
-                fix={item.fix}
-                dismissed={isDismissed}
+                style={SEVERITY_STYLES[item.severity] || SEVERITY_STYLES.low}
+                issue={item.issue} fix={item.fix}
+                dismissed={dismissed.has(key)}
                 onToggle={() => toggleDismiss(key)}
               />
             )
@@ -102,14 +89,12 @@ export default function RiskReport({ report, onContinue, onBack }) {
         <RiskSection title="Compliance Gaps" icon="📋">
           {report.compliance_gaps.map((item, i) => {
             const key = `compliance-${i}`
-            const isDismissed = dismissed.has(key)
             return (
               <RiskCard
                 key={key}
-                style={{ bg: '#fef3c7', color: '#92400e', border: '#fde68a', label: item.regulation }}
-                issue={item.gap}
-                fix={item.fix}
-                dismissed={isDismissed}
+                style={{ bg: 'rgba(234,179,8,0.15)', color: '#fbbf24', border: 'rgba(234,179,8,0.3)', label: item.regulation }}
+                issue={item.gap} fix={item.fix}
+                dismissed={dismissed.has(key)}
                 onToggle={() => toggleDismiss(key)}
               />
             )
@@ -122,15 +107,12 @@ export default function RiskReport({ report, onContinue, onBack }) {
         <RiskSection title="Accessibility Issues" icon="♿">
           {report.accessibility_issues.map((item, i) => {
             const key = `access-${i}`
-            const style = SEVERITY_STYLES[item.severity] || SEVERITY_STYLES.low
-            const isDismissed = dismissed.has(key)
             return (
               <RiskCard
                 key={key}
-                style={style}
-                issue={item.issue}
-                fix={item.fix}
-                dismissed={isDismissed}
+                style={SEVERITY_STYLES[item.severity] || SEVERITY_STYLES.low}
+                issue={item.issue} fix={item.fix}
+                dismissed={dismissed.has(key)}
                 onToggle={() => toggleDismiss(key)}
               />
             )
@@ -138,47 +120,45 @@ export default function RiskReport({ report, onContinue, onBack }) {
         </RiskSection>
       )}
 
-      {/* Actions */}
+      {/* Action buttons */}
       <div style={{
         display: 'flex', gap: '10px', justifyContent: 'center',
-        marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #f0f0f0'
+        marginTop: '24px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.06)'
       }}>
-        <button
-          onClick={onBack}
-          style={{
-            background: '#fff', color: '#666', border: '1px solid #e5e5e5',
-            padding: '11px 22px', borderRadius: '9px', fontSize: '13px',
-            fontWeight: '500', cursor: 'pointer'
-          }}
+        <button onClick={onBack} style={{
+          background: 'transparent', color: 'rgba(255,255,255,0.5)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          padding: '11px 22px', borderRadius: '9px', fontSize: '13px',
+          fontWeight: '500', cursor: 'pointer', transition: 'all 0.15s'
+        }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#fff' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)' }}
         >
           ← Back to Blueprint
         </button>
-        <button
-          onClick={onContinue}
-          style={{
-            background: '#0a0a0a', color: '#fff',
-            border: 'none', padding: '11px 28px', borderRadius: '9px',
-            fontSize: '13px', fontWeight: '700', cursor: 'pointer'
-          }}
+        <button onClick={onContinue} style={{
+          background: '#7c3aed', color: '#fff', border: 'none',
+          padding: '11px 28px', borderRadius: '9px', fontSize: '13px',
+          fontWeight: '700', cursor: 'pointer', transition: 'all 0.15s'
+        }}
+          onMouseEnter={e => e.currentTarget.style.background = '#6d28d9'}
+          onMouseLeave={e => e.currentTarget.style.background = '#7c3aed'}
         >
           Save to Dashboard →
         </button>
       </div>
-
     </div>
   )
 }
 
 function RiskSection({ title, icon, children }) {
   return (
-    <div style={{ marginBottom: '20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-        <span style={{ fontSize: '16px' }}>{icon}</span>
-        <span style={{ fontSize: '14px', fontWeight: '700', color: '#0a0a0a' }}>{title}</span>
+    <div style={{ marginBottom: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+        <span style={{ fontSize: '15px' }}>{icon}</span>
+        <span style={{ fontSize: '13px', fontWeight: '700', color: 'rgba(255,255,255,0.7)' }}>{title}</span>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {children}
-      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>{children}</div>
     </div>
   )
 }
@@ -186,38 +166,35 @@ function RiskSection({ title, icon, children }) {
 function RiskCard({ style, issue, fix, dismissed, onToggle }) {
   return (
     <div style={{
-      background: dismissed ? '#fafafa' : '#fff',
-      border: `1px solid ${dismissed ? '#e5e5e5' : style.border}`,
+      background: dismissed ? 'rgba(255,255,255,0.02)' : '#15151f',
+      border: `1px solid ${dismissed ? 'rgba(255,255,255,0.06)' : style.border}`,
       borderRadius: '10px', padding: '14px 16px',
-      opacity: dismissed ? 0.5 : 1,
-      transition: 'all 0.2s'
+      opacity: dismissed ? 0.45 : 1, transition: 'all 0.2s'
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
         <div style={{ flex: 1 }}>
           <span style={{
             display: 'inline-block', fontSize: '10px', fontWeight: '700',
-            padding: '2px 8px', borderRadius: '6px', marginBottom: '6px',
+            padding: '2px 8px', borderRadius: '5px', marginBottom: '6px',
             background: style.bg, color: style.color, letterSpacing: '0.04em'
           }}>
             {style.label}
           </span>
-          <div style={{ fontSize: '13px', fontWeight: '600', color: '#0a0a0a', marginBottom: '4px' }}>
+          <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff', marginBottom: '5px' }}>
             {issue}
           </div>
-          <div style={{ fontSize: '12px', color: '#666', lineHeight: '1.5' }}>
-            <strong>Fix:</strong> {fix}
+          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', lineHeight: '1.55' }}>
+            <strong style={{ color: 'rgba(255,255,255,0.55)' }}>Fix:</strong> {fix}
           </div>
         </div>
-        <button
-          onClick={onToggle}
-          style={{
-            flexShrink: 0, fontSize: '11px', fontWeight: '600',
-            padding: '5px 10px', borderRadius: '6px', cursor: 'pointer',
-            border: '1px solid #e5e5e5',
-            background: dismissed ? '#0a0a0a' : '#fff',
-            color: dismissed ? '#fff' : '#666'
-          }}
-        >
+        <button onClick={onToggle} style={{
+          flexShrink: 0, fontSize: '11px', fontWeight: '600',
+          padding: '5px 10px', borderRadius: '6px', cursor: 'pointer',
+          border: '1px solid rgba(255,255,255,0.12)',
+          background: dismissed ? '#7c3aed' : 'rgba(255,255,255,0.06)',
+          color: dismissed ? '#fff' : 'rgba(255,255,255,0.5)',
+          transition: 'all 0.15s'
+        }}>
           {dismissed ? '✓ Dismissed' : 'Dismiss'}
         </button>
       </div>
