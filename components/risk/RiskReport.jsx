@@ -26,6 +26,14 @@ export default function RiskReport({ report, onContinue, onBack }) {
 
   return (
     <div style={{ maxWidth: '780px', margin: '0 auto' }}>
+      <style>{`
+        @keyframes rr-in { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes rr-card-in { from { opacity:0; transform:translateX(8px); } to { opacity:1; transform:translateX(0); } }
+        .rr-card { animation: rr-card-in 0.25s cubic-bezier(0.4,0,0.2,1) both; }
+        .rr-btn { transition: all 0.15s !important; }
+        .rr-btn:hover { transform: translateY(-1px) !important; box-shadow: 0 4px 14px rgba(0,0,0,0.3) !important; }
+        .rr-btn:active { transform: scale(0.97) !important; }
+      `}</style>
 
       {/* Header banner */}
       <div style={{
@@ -125,24 +133,20 @@ export default function RiskReport({ report, onContinue, onBack }) {
         display: 'flex', gap: '10px', justifyContent: 'center',
         marginTop: '24px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.06)'
       }}>
-        <button onClick={onBack} style={{
+        <button onClick={onBack} className="rr-btn" style={{
           background: 'transparent', color: 'rgba(255,255,255,0.5)',
           border: '1px solid rgba(255,255,255,0.12)',
           padding: '11px 22px', borderRadius: '9px', fontSize: '13px',
-          fontWeight: '500', cursor: 'pointer', transition: 'all 0.15s'
+          fontWeight: '500', cursor: 'pointer'
         }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#fff' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)' }}
         >
           ← Back to Blueprint
         </button>
-        <button onClick={onContinue} style={{
+        <button onClick={onContinue} className="rr-btn" style={{
           background: '#7c3aed', color: '#fff', border: 'none',
           padding: '11px 28px', borderRadius: '9px', fontSize: '13px',
-          fontWeight: '700', cursor: 'pointer', transition: 'all 0.15s'
+          fontWeight: '700', cursor: 'pointer'
         }}
-          onMouseEnter={e => e.currentTarget.style.background = '#6d28d9'}
-          onMouseLeave={e => e.currentTarget.style.background = '#7c3aed'}
         >
           Save to Dashboard →
         </button>

@@ -29,13 +29,25 @@ function BuildPageInner() {
   const [riskLoading, setRiskLoading] = useState(false)
   const [riskError, setRiskError] = useState(false)
   const [researchError, setResearchError] = useState(false)
-  const [resuming, setResuming] = useState(!!existingId)
+
+  // ✅ Use lazy initializer so Vercel/SSR hydration doesn’t flash the idle screen.
+  // useSearchParams() can return null on first render in production (Suspense boundary),
+  // so we also read window.location.search directly as a reliable fallback.
+  const [resuming, setResuming] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !!new URLSearchParams(window.location.search).get('id')
+    }
+    return !!existingId
+  })
 
   // ── Resume an existing project ──
   useEffect(() => {
-    if (!existingId) return
+    // Resolve the project ID: prefer searchParams (client nav), fall back to window.location (hard load on Vercel)
+    const id = existingId ??
+      (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null)
+    if (!id) return
     async function load() {
-      const res = await fetch(`/api/project/${existingId}`)
+      const res = await fetch(`/api/project/${id}`)
       const data = await res.json()
       if (data.project) {
         setProjectId(data.project.id)
@@ -47,7 +59,7 @@ function BuildPageInner() {
         }
         if (data.riskReport) {
           setRiskReport(data.riskReport.report)
-          setStage('risk')           // ✅ dedicated risk stage
+          setStage('risk')
         } else if (data.blueprint) {
           setStage('blueprint')
           setBlueprintView('text')
