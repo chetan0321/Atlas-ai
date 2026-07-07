@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import BlueprintEditor from '@/components/blueprint/BlueprintEditor'
 import IntentGraph from '@/components/blueprint/IntentGraph'
 import RiskReport from '@/components/risk/RiskReport'
+import BuildSquad from '@/components/generate/BuildSquad'
+import FileViewer from '@/components/generate/FileViewer'
+import { bundleFilesToZip } from '@/lib/zip/bundler'
 import { Search } from 'lucide-react'
 
 // ─── Blueprint Loading Overlay ───────────────────────────────────────────────
@@ -204,6 +207,15 @@ export default function BuildClient({ projectId: initialProjectId }) {
   const [researchError, setResearchError] = useState(false)
   const [resuming, setResuming]       = useState(!!initialProjectId)
 
+  // ── Phase 1: Generation state ──
+  const [generationRunId, setGenerationRunId]   = useState(null)
+  const [agentStatuses, setAgentStatuses]       = useState({})
+  const [generationStatus, setGenerationStatus] = useState(null)
+  const [generatedFiles, setGeneratedFiles]     = useState([])
+  const [fileCount, setFileCount]               = useState(0)
+  const [showFileViewer, setShowFileViewer]     = useState(false)
+  const [generationLoading, setGenerationLoading] = useState(false)
+
   // ── Cycle blueprint loading steps ──
   useEffect(() => {
     if (!blueprintLoading) { setBpStep(0); return }
@@ -314,6 +326,74 @@ export default function BuildClient({ projectId: initialProjectId }) {
     goStage('saved')
   }
 
+  // ── Phase 1: Start generation ─────────────────────────────────────────────
+  async function handleStartGeneration() {
+    setGenerationLoading(true)
+    goStage('generating')
+    try {
+      // Save/finalize the project first so it appears in dashboard
+      await fetch('/api/project/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'finalize', projectId, blueprintId }),
+      })
+      // Kick off BullMQ job
+      const res  = await fetch('/api/generate/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, blueprintId }),
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error || 'Failed to start generation')
+      setGenerationRunId(data.generationRunId)
+      startSSEStream(data.generationRunId)
+    } catch (err) {
+      alert('Failed to start generation: ' + err.message)
+      goStage('risk')
+    } finally {
+      setGenerationLoading(false)
+    }
+  }
+
+  function startSSEStream(runId) {
+    const evtSource = new EventSource(`/api/generate/stream?runId=${runId}`)
+    evtSource.onmessage = (event) => {
+      const data = JSON.parse(event.data)
+      if (data.type === 'progress') {
+        setAgentStatuses(data.agentStatuses || {})
+        setGenerationStatus(data.status)
+      }
+      if (data.type === 'completed') {
+        setGenerationStatus('completed')
+        setFileCount(data.fileCount ?? 0)
+        evtSource.close()
+        loadGeneratedFiles(runId)
+      }
+      if (data.type === 'error') {
+        setGenerationStatus('failed')
+        evtSource.close()
+      }
+    }
+    evtSource.onerror = () => evtSource.close()
+  }
+
+  async function loadGeneratedFiles(runId) {
+    const res  = await fetch(`/api/generate/files?runId=${runId}`)
+    const data = await res.json()
+    setGeneratedFiles(data.files || [])
+  }
+
+  async function handleDownloadZip() {
+    if (!generatedFiles.length) return
+    const blob = await bundleFilesToZip(generatedFiles, blueprint?.projectName || 'atlas-app')
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `${(blueprint?.projectName || 'atlas-app').replace(/\s+/g, '-').toLowerCase()}.zip`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   function reset() {
     setProjectId(null); setBlueprintId(null); setInputValue(''); setDescription('')
     setResearch(''); setBlueprint(null); setRiskReport(null); goStage('idle')
@@ -321,10 +401,12 @@ export default function BuildClient({ projectId: initialProjectId }) {
   }
 
   const STEPS = [
-    { key: 'research', label: 'Research' }, { key: 'blueprint', label: 'Blueprint' },
-    { key: 'risk', label: 'Risk Analysis' }, { key: 'saved', label: 'Done' }
+    { key: 'research',   label: 'Research'      },
+    { key: 'blueprint',  label: 'Blueprint'     },
+    { key: 'risk',       label: 'Risk Analysis' },
+    { key: 'generating', label: 'Build'         },
   ]
-  const stageIndex = { idle:-1, research:0, blueprint:1, risk:2, saved:3 }[stage] ?? -1
+  const stageIndex = { idle:-1, research:0, blueprint:1, risk:2, saved:2, generating:3 }[stage] ?? -1
 
   function goToStep(key) {
     if (key === 'research'  && research)   goStage('research')
@@ -519,23 +601,66 @@ export default function BuildClient({ projectId: initialProjectId }) {
               </div>
             )}
             {!riskLoading && !riskError && riskReport && (
-              <RiskReport report={riskReport} onContinue={handleSaveToDashboard} onBack={()=>goStage('blueprint')}/>
+              <RiskReport report={riskReport} onContinue={handleStartGeneration} onBack={()=>goStage('blueprint')}/>
             )}
           </div>
         )}
 
-        {/* SAVED */}
+        {/* SAVED — blueprint approved, prompt to generate */}
         {stage==='saved' && (
-          <div key={`saved-${stageKey}`} style={{ maxWidth:'500px', margin:'60px auto', textAlign:'center', background:'rgba(34,197,94,0.08)', border:'1px solid rgba(34,197,94,0.25)', borderRadius:'20px', padding:'56px 36px', animation:'saved-pop 0.55s cubic-bezier(0.34,1.56,0.64,1) both' }}>
-            <div style={{ fontSize:'56px', marginBottom:'16px', animation:'icon-pulse 2s ease-in-out infinite' }}>🎉</div>
-            <h2 style={{ fontSize:'26px', fontWeight:'800', marginBottom:'10px', color:'#fff' }}>Saved to Dashboard!</h2>
-            <p style={{ color:'rgba(255,255,255,0.45)', fontSize:'14px', marginBottom:'32px', lineHeight:'1.65' }}>
-              <strong style={{ color:'#fff' }}>{blueprint?.projectName}</strong> is saved. Reopen it anytime from the sidebar or dashboard — exactly where you left off.
+          <div key={`saved-${stageKey}`} style={{ maxWidth:'500px', margin:'60px auto', textAlign:'center', background:'rgba(124,58,237,0.07)', border:'1px solid rgba(124,58,237,0.25)', borderRadius:'20px', padding:'52px 36px', animation:'saved-pop 0.55s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+            <div style={{ fontSize:'52px', marginBottom:'16px', animation:'icon-pulse 2s ease-in-out infinite' }}>🏗️</div>
+            <h2 style={{ fontSize:'26px', fontWeight:'800', marginBottom:'10px', color:'#fff' }}>Blueprint Approved!</h2>
+            <p style={{ color:'rgba(255,255,255,0.45)', fontSize:'14px', marginBottom:'10px', lineHeight:'1.65' }}>
+              <strong style={{ color:'#fff' }}>{blueprint?.projectName}</strong> is saved and ready.
+            </p>
+            <p style={{ color:'rgba(255,255,255,0.35)', fontSize:'13px', marginBottom:'32px', lineHeight:'1.65' }}>
+              Launch the Build Squad to generate all your code — 5 agents working in parallel.
             </p>
             <div style={{ display:'flex', gap:'10px', justifyContent:'center', flexWrap:'wrap' }}>
-              <a href="/dashboard" style={{ background:'#7c3aed', color:'#fff', border:'none', padding:'11px 26px', borderRadius:'9px', fontSize:'14px', fontWeight:'700', textDecoration:'none', boxShadow:'0 4px 20px rgba(124,58,237,0.35)' }}>View all projects →</a>
-              <button onClick={reset} style={{ background:'transparent', color:'rgba(255,255,255,0.5)', border:'1px solid rgba(255,255,255,0.15)', padding:'11px 26px', borderRadius:'9px', fontSize:'14px', fontWeight:'500', cursor:'pointer' }}>Build another app</button>
+              <button
+                onClick={handleStartGeneration}
+                disabled={generationLoading}
+                style={{ background: generationLoading ? 'rgba(124,58,237,0.4)' : 'linear-gradient(135deg,#7c3aed,#4f46e5)', color:'#fff', border:'none', padding:'12px 30px', borderRadius:'10px', fontSize:'14px', fontWeight:'700', cursor: generationLoading ? 'not-allowed' : 'pointer', boxShadow:'0 4px 20px rgba(124,58,237,0.35)', transition:'all 0.18s' }}
+                onMouseEnter={e=>{if(!generationLoading){e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 8px 28px rgba(124,58,237,0.5)'}}}
+                onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='0 4px 20px rgba(124,58,237,0.35)'}}
+              >
+                {generationLoading ? '⏳ Starting…' : '⚡ Generate App →'}
+              </button>
+              <a href="/dashboard" style={{ background:'rgba(255,255,255,0.05)', color:'rgba(255,255,255,0.55)', border:'1px solid rgba(255,255,255,0.1)', padding:'12px 22px', borderRadius:'10px', fontSize:'14px', fontWeight:'500', textDecoration:'none', display:'inline-flex', alignItems:'center' }}>View Dashboard</a>
             </div>
+            <button onClick={reset} style={{ marginTop:'20px', background:'transparent', color:'rgba(255,255,255,0.25)', border:'none', fontSize:'12px', cursor:'pointer' }}>Start a new project instead</button>
+          </div>
+        )}
+
+        {/* GENERATING — live Build Squad panel */}
+        {stage==='generating' && (
+          <div key={`generating-${stageKey}`} className="build-slide-enter" style={{ maxWidth:'900px', margin:'24px auto 0' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'24px' }}>
+              <div style={{ width:'28px', height:'28px', borderRadius:'50%', background:'linear-gradient(135deg,#7c3aed,#4f46e5)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px' }}>⚡</div>
+              <span style={{ fontSize:'15px', fontWeight:'700', color:'#fff' }}>Generating Your App</span>
+              {generationStatus !== 'completed' && generationStatus !== 'failed' && (
+                <svg style={{ marginLeft:'4px', animation:'build-spin 0.75s linear infinite' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.5"><path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round"/></svg>
+              )}
+            </div>
+            <BuildSquad
+              agentStatuses={agentStatuses}
+              overallStatus={generationStatus}
+              fileCount={fileCount}
+              onDownload={handleDownloadZip}
+              onViewFiles={() => setShowFileViewer(true)}
+            />
+            {showFileViewer && generatedFiles.length > 0 && (
+              <div style={{ marginTop:'24px', animation:'build-fadein 0.3s ease both' }}>
+                <FileViewer files={generatedFiles} onClose={() => setShowFileViewer(false)} />
+              </div>
+            )}
+            {generationStatus === 'completed' && (
+              <div style={{ display:'flex', gap:'10px', marginTop:'24px', justifyContent:'center' }}>
+                <button onClick={reset} style={{ background:'transparent', color:'rgba(255,255,255,0.35)', border:'1px solid rgba(255,255,255,0.1)', padding:'9px 20px', borderRadius:'8px', fontSize:'13px', cursor:'pointer' }}>Build another app</button>
+                <a href="/dashboard" style={{ background:'rgba(255,255,255,0.05)', color:'rgba(255,255,255,0.55)', border:'1px solid rgba(255,255,255,0.1)', padding:'9px 20px', borderRadius:'8px', fontSize:'13px', textDecoration:'none' }}>View Dashboard</a>
+              </div>
+            )}
           </div>
         )}
       </div>

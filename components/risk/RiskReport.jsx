@@ -143,12 +143,13 @@ export default function RiskReport({ report, onContinue, onBack }) {
           ← Back to Blueprint
         </button>
         <button onClick={onContinue} className="rr-btn" style={{
-          background: '#7c3aed', color: '#fff', border: 'none',
+          background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', color: '#fff', border: 'none',
           padding: '11px 28px', borderRadius: '9px', fontSize: '13px',
-          fontWeight: '700', cursor: 'pointer'
+          fontWeight: '700', cursor: 'pointer',
+          boxShadow: '0 4px 18px rgba(124,58,237,0.4)'
         }}
         >
-          Save to Dashboard →
+          ⚡ Generate App →
         </button>
       </div>
     </div>
