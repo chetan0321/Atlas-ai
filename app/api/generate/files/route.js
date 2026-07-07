@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(request) {
   try {
@@ -14,7 +15,9 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Missing runId' }, { status: 400 })
     }
 
-    const { data: files, error } = await supabase
+    // Use admin client to bypass RLS on generated_files
+    const admin = createAdminClient()
+    const { data: files, error } = await admin
       .from('generated_files')
       .select('file_path, content, agent')
       .eq('generation_id', generationRunId)

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Groq from 'groq-sdk'
 
 // Vercel Hobby = 60s max, Vercel Pro = up to 300s
@@ -176,23 +177,28 @@ function getAgent(filePath) {
 
 // ─── Main route ───────────────────────────────────────────────────────────────
 export async function POST(request) {
+  // Auth check via user session
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
 
   const { projectId, blueprintId } = await request.json()
 
-  // Verify ownership + get blueprint
+  // Verify ownership
   const { data: project } = await supabase
     .from('projects').select('*').eq('id', projectId).eq('user_id', user.id).single()
   if (!project) return new Response('Project not found', { status: 404 })
 
+  // Get blueprint
   const { data: blueprint } = await supabase
     .from('blueprints').select('*').eq('id', blueprintId).single()
   if (!blueprint) return new Response('Blueprint not found', { status: 404 })
 
   const blueprintJson = blueprint.json
   const tier = blueprintJson?.tier || 1
+
+  // Admin client for all DB writes (bypasses RLS, works inside streaming closure)
+  const admin = createAdminClient()
 
   const encoder = new TextEncoder()
 
@@ -204,7 +210,7 @@ export async function POST(request) {
 
       try {
         // ── Create generation_run record ──────────────────────────────────────
-        const { data: run } = await supabase
+        const { data: run, error: runErr } = await admin
           .from('generation_runs')
           .insert({
             project_id:   projectId,
@@ -223,8 +229,15 @@ export async function POST(request) {
           })
           .select().single()
 
+        if (runErr) {
+          console.error('Failed to create generation_run:', runErr)
+          send({ type: 'error', message: `DB error: ${runErr.message}. Did you run the SQL migration?` })
+          controller.close()
+          return
+        }
+
         // Mark project as generating
-        await supabase.from('projects').update({ status: 'generating' }).eq('id', projectId)
+        await admin.from('projects').update({ status: 'generating' }).eq('id', projectId)
 
         send({
           type:            'started',
@@ -258,7 +271,7 @@ export async function POST(request) {
           coordinator: 'running',
         }
 
-        await supabase.from('generation_runs')
+        await admin.from('generation_runs')
           .update({ agent_statuses: afterAgents })
           .eq('id', run.id)
 
@@ -276,7 +289,7 @@ export async function POST(request) {
         const { files, summary } = await runCoordinator(merged, blueprintJson)
 
         const finalStatuses = { ...afterAgents, coordinator: 'done' }
-        await supabase.from('generation_runs')
+        await admin.from('generation_runs')
           .update({ agent_statuses: finalStatuses })
           .eq('id', run.id)
 
@@ -292,17 +305,18 @@ export async function POST(request) {
         }))
 
         if (fileRows.length > 0) {
-          await supabase.from('generated_files').insert(fileRows)
+          const { error: insertErr } = await admin.from('generated_files').insert(fileRows)
+          if (insertErr) console.error('generated_files insert error:', insertErr)
         }
 
         // ── Mark complete ─────────────────────────────────────────────────────
-        await supabase.from('generation_runs').update({
+        await admin.from('generation_runs').update({
           status:            'completed',
           completed_at:      new Date().toISOString(),
           total_tokens_used: fileRows.length,
         }).eq('id', run.id)
 
-        await supabase.from('projects').update({ status: 'generated' }).eq('id', projectId)
+        await admin.from('projects').update({ status: 'generated' }).eq('id', projectId)
 
         send({ type: 'completed', fileCount: fileRows.length, generationRunId: run.id })
 
