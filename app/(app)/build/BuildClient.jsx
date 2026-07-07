@@ -326,55 +326,75 @@ export default function BuildClient({ projectId: initialProjectId }) {
     goStage('saved')
   }
 
-  // ── Phase 1: Start generation ─────────────────────────────────────────────
+  // ── Phase 1: Start generation (inline — works on Vercel) ──────────────────
   async function handleStartGeneration() {
     setGenerationLoading(true)
     goStage('generating')
+
+    // Show all agents as running immediately
+    setAgentStatuses({
+      frontend: 'running', backend: 'running', schema: 'running',
+      security: 'running', test: 'running', coordinator: 'waiting',
+    })
+
     try {
-      // Save/finalize the project first so it appears in dashboard
+      // Save project first
       await fetch('/api/project/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'finalize', projectId, blueprintId }),
       })
-      // Kick off BullMQ job
-      const res  = await fetch('/api/generate/start', {
+
+      // Single streaming POST — agents run inline on the server, no BullMQ needed
+      const response = await fetch('/api/generate/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, blueprintId }),
       })
-      const data = await res.json()
-      if (!data.success) throw new Error(data.error || 'Failed to start generation')
-      setGenerationRunId(data.generationRunId)
-      startSSEStream(data.generationRunId)
+
+      if (!response.ok) throw new Error(`Server error: ${response.status}`)
+
+      const reader  = response.body.getReader()
+      const decoder = new TextDecoder()
+      let   buffer  = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() // keep incomplete line
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const data = JSON.parse(line.slice(6))
+
+            if (data.type === 'started' || data.type === 'progress') {
+              if (data.agentStatuses) setAgentStatuses(data.agentStatuses)
+              if (data.generationRunId) setGenerationRunId(data.generationRunId)
+              setGenerationStatus(data.status || 'running')
+            }
+
+            if (data.type === 'completed') {
+              setGenerationStatus('completed')
+              setFileCount(data.fileCount ?? 0)
+              if (data.generationRunId) loadGeneratedFiles(data.generationRunId)
+            }
+
+            if (data.type === 'error') {
+              setGenerationStatus('failed')
+            }
+          } catch { /* skip malformed SSE lines */ }
+        }
+      }
     } catch (err) {
-      alert('Failed to start generation: ' + err.message)
-      goStage('risk')
+      console.error('Generation error:', err)
+      setGenerationStatus('failed')
     } finally {
       setGenerationLoading(false)
     }
-  }
-
-  function startSSEStream(runId) {
-    const evtSource = new EventSource(`/api/generate/stream?runId=${runId}`)
-    evtSource.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      if (data.type === 'progress') {
-        setAgentStatuses(data.agentStatuses || {})
-        setGenerationStatus(data.status)
-      }
-      if (data.type === 'completed') {
-        setGenerationStatus('completed')
-        setFileCount(data.fileCount ?? 0)
-        evtSource.close()
-        loadGeneratedFiles(runId)
-      }
-      if (data.type === 'error') {
-        setGenerationStatus('failed')
-        evtSource.close()
-      }
-    }
-    evtSource.onerror = () => evtSource.close()
   }
 
   async function loadGeneratedFiles(runId) {
