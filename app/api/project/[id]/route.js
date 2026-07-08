@@ -24,15 +24,20 @@ export async function GET(request, { params }) {
       .order('created_at', { ascending: false }).limit(1).maybeSingle()
 
     let riskReport = null
+    let generationRun = null
     if (blueprint) {
-      // Use admin client to bypass RLS on risk_reports (same as save route)
+      // Use admin client to bypass RLS on risk_reports and generation_runs
       const admin = createAdminClient()
-      const { data } = await admin
+      const { data: riskData } = await admin
         .from('risk_reports').select('*').eq('blueprint_id', blueprint.id).maybeSingle()
-      riskReport = data
+      riskReport = riskData
+
+      const { data: runData } = await admin
+        .from('generation_runs').select('*').eq('blueprint_id', blueprint.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      generationRun = runData
     }
 
-    return NextResponse.json({ project, blueprint, riskReport })
+    return NextResponse.json({ project, blueprint, riskReport, generationRun })
 
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

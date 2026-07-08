@@ -323,6 +323,14 @@ export async function POST(request) {
       } catch (err) {
         console.error('Inline generation error:', err)
         send({ type: 'error', message: err.message || 'Generation failed' })
+        
+        // If run was created, mark it as failed so it doesn't get stuck in 'running' state
+        if (run?.id) {
+          await admin.from('generation_runs').update({
+            status: 'failed',
+            completed_at: new Date().toISOString()
+          }).eq('id', run.id)
+        }
       } finally {
         controller.close()
       }

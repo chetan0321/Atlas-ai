@@ -211,6 +211,7 @@ export default function BuildClient({ projectId: initialProjectId }) {
   const [generationRunId, setGenerationRunId]   = useState(null)
   const [agentStatuses, setAgentStatuses]       = useState({})
   const [generationStatus, setGenerationStatus] = useState(null)
+  const [generationError, setGenerationError]   = useState(null)
   const [generatedFiles, setGeneratedFiles]     = useState([])
   const [fileCount, setFileCount]               = useState(0)
   const [showFileViewer, setShowFileViewer]     = useState(false)
@@ -245,7 +246,18 @@ export default function BuildClient({ projectId: initialProjectId }) {
             setBlueprintId(data.blueprint.id)
             setBlueprint(data.blueprint.json)
           }
-          if (data.riskReport) {
+          if (data.generationRun) {
+            setGenerationRunId(data.generationRun.id)
+            setAgentStatuses(data.generationRun.agent_statuses || {})
+            setGenerationStatus(data.generationRun.status)
+            setFileCount(data.generationRun.total_tokens_used || 0)
+            if (data.generationRun.status === 'completed') {
+              loadGeneratedFiles(data.generationRun.id)
+            }
+            goStage('generating')
+          } else if (data.project.status === 'blueprint') {
+            goStage('saved')
+          } else if (data.riskReport) {
             setRiskReport(data.riskReport.report)
             goStage('risk')
           } else if (data.blueprint) {
@@ -329,6 +341,7 @@ export default function BuildClient({ projectId: initialProjectId }) {
   // ── Phase 1: Start generation (inline — works on Vercel) ──────────────────
   async function handleStartGeneration() {
     setGenerationLoading(true)
+    setGenerationError(null)
     goStage('generating')
 
     // Show all agents as running immediately
@@ -385,6 +398,7 @@ export default function BuildClient({ projectId: initialProjectId }) {
 
             if (data.type === 'error') {
               setGenerationStatus('failed')
+              setGenerationError(data.message || 'Unknown generation error.')
             }
           } catch { /* skip malformed SSE lines */ }
         }
@@ -392,6 +406,7 @@ export default function BuildClient({ projectId: initialProjectId }) {
     } catch (err) {
       console.error('Generation error:', err)
       setGenerationStatus('failed')
+      setGenerationError(err.message || 'Network error occurred.')
     } finally {
       setGenerationLoading(false)
     }
@@ -666,6 +681,7 @@ export default function BuildClient({ projectId: initialProjectId }) {
             <BuildSquad
               agentStatuses={agentStatuses}
               overallStatus={generationStatus}
+              errorMessage={generationError}
               fileCount={fileCount}
               onDownload={handleDownloadZip}
               onViewFiles={() => setShowFileViewer(true)}

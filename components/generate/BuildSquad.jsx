@@ -22,6 +22,7 @@ const STATUS = {
 export default function BuildSquad({
   agentStatuses = {},
   overallStatus,
+  errorMessage,
   fileCount,
   onDownload,
   onViewFiles,
@@ -174,7 +175,11 @@ export default function BuildSquad({
         }}>
           <div style={{ fontSize: '13px', color: '#f87171', marginBottom: '14px', lineHeight: '1.6' }}>
             ⚠️ The build agents encountered an error.<br />
-            You can try regenerating — your blueprint is saved.
+            {errorMessage ? (
+              <span style={{ fontWeight: 'bold', color: '#fca5a5', display: 'inline-block', marginTop: '8px' }}>{errorMessage}</span>
+            ) : (
+              'You can try regenerating — your blueprint is saved.'
+            )}
           </div>
           <button
             onClick={() => window.location.reload()}
