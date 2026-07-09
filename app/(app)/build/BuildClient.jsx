@@ -338,75 +338,105 @@ export default function BuildClient({ projectId: initialProjectId }) {
     goStage('saved')
   }
 
-  // ── Phase 1: Start generation (inline — works on Vercel) ──────────────────
+  // ── Phase 1: Start generation (chunked — bypasses Vercel 60s limit) ──────────
   async function handleStartGeneration() {
     setGenerationLoading(true)
     setGenerationError(null)
     goStage('generating')
 
-    // Show all agents as running immediately
-    setAgentStatuses({
-      frontend: 'running', backend: 'running', schema: 'running',
-      security: 'running', test: 'running', coordinator: 'waiting',
-    })
+    let currentStatuses = {
+      frontend: 'running', backend: 'skipped', schema: 'skipped',
+      security: 'skipped', test: 'running', coordinator: 'waiting',
+    }
+    const tier = blueprint?.tier || 1
+    if (tier > 1) {
+      currentStatuses.backend = 'running'
+      currentStatuses.schema = 'running'
+      currentStatuses.security = 'running'
+    }
+
+    setAgentStatuses({ ...currentStatuses })
+    setGenerationStatus('running')
 
     try {
-      // Save project first
+      // 1. Save project first
       await fetch('/api/project/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'finalize', projectId, blueprintId }),
       })
 
-      // Single streaming POST — agents run inline on the server, no BullMQ needed
-      const response = await fetch('/api/generate/run', {
+      // 2. Init generation run
+      const initRes = await fetch('/api/generate/init', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, blueprintId }),
       })
+      
+      const initData = await initRes.json()
+      if (!initRes.ok) throw new Error(initData.error || 'Failed to initialize generation')
+      
+      const { runId } = initData
+      setGenerationRunId(runId)
 
-      if (!response.ok) throw new Error(`Server error: ${response.status}`)
+      // 3. Run agents in parallel
+      const agentsToRun = ['frontend', 'test']
+      if (tier > 1) agentsToRun.push('backend', 'schema', 'security')
 
-      const reader  = response.body.getReader()
-      const decoder = new TextDecoder()
-      let   buffer  = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() // keep incomplete line
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const data = JSON.parse(line.slice(6))
-
-            if (data.type === 'started' || data.type === 'progress') {
-              if (data.agentStatuses) setAgentStatuses(data.agentStatuses)
-              if (data.generationRunId) setGenerationRunId(data.generationRunId)
-              setGenerationStatus(data.status || 'running')
-            }
-
-            if (data.type === 'completed') {
-              setGenerationStatus('completed')
-              setFileCount(data.fileCount ?? 0)
-              if (data.generationRunId) loadGeneratedFiles(data.generationRunId)
-            }
-
-            if (data.type === 'error') {
-              setGenerationStatus('failed')
-              setGenerationError(data.message || 'Unknown generation error.')
-            }
-          } catch { /* skip malformed SSE lines */ }
+      // Use Promise.all to fire them simultaneously, each gets its own 60s Vercel timeout!
+      const agentPromises = agentsToRun.map(async (agent) => {
+        try {
+          const res = await fetch('/api/generate/agent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ runId, agent }),
+          })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error || `${agent} failed`)
+          
+          // Update status as each finishes
+          currentStatuses = { ...currentStatuses, [agent]: 'done' }
+          setAgentStatuses({ ...currentStatuses })
+          return { agent, success: true }
+        } catch (err) {
+          console.error(`Error in ${agent}:`, err)
+          currentStatuses = { ...currentStatuses, [agent]: 'error' }
+          setAgentStatuses({ ...currentStatuses })
+          return { agent, success: false, error: err.message }
         }
+      })
+
+      const results = await Promise.all(agentPromises)
+      
+      const anyFailed = results.some(r => !r.success)
+      if (anyFailed) {
+        throw new Error('One or more agents failed. Check the status panel.')
       }
+
+      // 4. Run coordinator
+      currentStatuses = { ...currentStatuses, coordinator: 'running' }
+      setAgentStatuses({ ...currentStatuses })
+
+      const coordRes = await fetch('/api/generate/coordinator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runId }),
+      })
+      const coordData = await coordRes.json()
+      if (!coordRes.ok) throw new Error(coordData.error || 'Coordinator failed')
+
+      // 5. Complete
+      currentStatuses = { ...currentStatuses, coordinator: 'done' }
+      setAgentStatuses({ ...currentStatuses })
+      setGenerationStatus('completed')
+      setFileCount(coordData.count || 0)
+      
+      await loadGeneratedFiles(runId)
+
     } catch (err) {
       console.error('Generation error:', err)
       setGenerationStatus('failed')
-      setGenerationError(err.message || 'Network error occurred.')
+      setGenerationError(err.message || 'Generation failed.')
     } finally {
       setGenerationLoading(false)
     }

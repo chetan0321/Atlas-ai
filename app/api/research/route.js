@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server'
-import Groq from 'groq-sdk'
 import { createClient } from '@/lib/supabase/server'
-
-const client = new Groq({
-  apiKey: process.env.GROQ_API_KEY
-})
+import { createChatCompletion } from '@/lib/claude/client'
 
 export async function POST(request) {
   const supabase = await createClient()
@@ -20,7 +16,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Description is required' }, { status: 400 })
     }
 
-    const stream = await client.chat.completions.create({
+    const stream = await createChatCompletion({
       model: 'llama-3.3-70b-versatile',
       max_tokens: 2000,
       stream: true,
