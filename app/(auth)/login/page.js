@@ -117,7 +117,7 @@ export default function LoginPage() {
 
         <div style={{ marginBottom: '14px' }}>
           <label style={{ fontSize: '13px', fontWeight: '500', color: 'rgba(255,255,255,0.65)', display: 'block', marginBottom: '6px' }}>Email</label>
-          <input className="auth-input" type="email" value={email} onChange={e => setEmail(e.target.value)}
+          <input suppressHydrationWarning className="auth-input" type="email" value={email} onChange={e => setEmail(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleLogin()}
             placeholder="name@company.com" style={inputStyle}
           />
@@ -131,12 +131,12 @@ export default function LoginPage() {
             </Link>
           </div>
           <div style={{ position: 'relative' }}>
-            <input className="auth-input" type={showPw ? 'text' : 'password'} value={password}
+            <input suppressHydrationWarning className="auth-input" type={showPw ? 'text' : 'password'} value={password}
               onChange={e => setPassword(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
               placeholder="••••••••" style={{ ...inputStyle, paddingRight: '44px' }}
             />
-            <button onClick={() => setShowPw(p => !p)} style={{
+            <button suppressHydrationWarning onClick={() => setShowPw(p => !p)} style={{
               position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
               background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', padding: 0, display: 'flex'
             }}>
@@ -145,7 +145,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <button onClick={handleLogin} disabled={loading} className="auth-btn-primary" style={{
+        <button suppressHydrationWarning onClick={handleLogin} disabled={loading} className="auth-btn-primary" style={{
           width: '100%', background: loading ? 'rgba(255,255,255,0.2)' : '#fff',
           color: '#000', border: 'none', padding: '12px', fontSize: '15px', fontWeight: '700',
           borderRadius: '9px', cursor: loading ? 'not-allowed' : 'pointer', marginBottom: '20px',
@@ -166,7 +166,7 @@ export default function LoginPage() {
             { label: 'Google', icon: <GoogleIcon />, provider: 'google' },
             { label: 'GitHub', icon: <GitHubIcon />, provider: 'github' }
           ].map(p => (
-            <button key={p.provider} className="auth-btn-social" onClick={async () => {
+            <button suppressHydrationWarning key={p.provider} className="auth-btn-social" onClick={async () => {
               await supabase.auth.signInWithOAuth({ provider: p.provider, options: { redirectTo: `${window.location.origin}/auth/callback` } })
             }} style={{
               background: 'transparent', border: '1px solid rgba(255,255,255,0.14)',

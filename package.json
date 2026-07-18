@@ -2,15 +2,19 @@
   "name": "atlas-ai",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "worker": "node --env-file=.env.local --experimental-vm-modules lib/queue/generationWorker.js"
+    "worker": "node --env-file=.env.local --experimental-vm-modules lib/queue/generationWorker.js",
+    "benchmark": "node --env-file=.env.local scripts/benchmark-template.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
+    "@babel/parser": "^7.29.7",
+    "@babel/traverse": "^7.29.7",
     "@monaco-editor/react": "^4.7.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.2",
@@ -35,7 +39,8 @@
     "shadcn": "^4.8.1",
     "stripe": "^22.1.1",
     "tailwind-merge": "^3.6.0",
-    "tw-animate-css": "^1.4.0"
+    "tw-animate-css": "^1.4.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

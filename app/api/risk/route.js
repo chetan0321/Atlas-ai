@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createChatCompletion } from '@/lib/claude/client'
+import { createOpenRouterCompletion, getContent } from '@/lib/claude/client'
 
 export async function POST(request) {
   const supabase = await createClient()
@@ -12,8 +12,7 @@ export async function POST(request) {
   try {
     const { blueprint } = await request.json()
 
-    const response = await createChatCompletion({
-      model: 'llama-3.3-70b-versatile',
+    const response = await createOpenRouterCompletion({
       max_tokens: 2000,
       messages: [
         {
@@ -51,21 +50,30 @@ Rules:
       ]
     })
 
-    const raw = response.choices[0].message.content.trim()
+    const raw = getContent(response).trim()
     const cleaned = raw
       .replace(/^```json\n?/, '')
       .replace(/^```\n?/, '')
       .replace(/\n?```$/, '')
       .trim()
 
-    const riskReport = JSON.parse(cleaned)
+    // Safely extract the first JSON object in the string
+    let riskReport
+    try {
+      riskReport = JSON.parse(cleaned)
+    } catch {
+      // Fallback: pull out the first {...} block in case of extra text
+      const match = cleaned.match(/\{[\s\S]*\}/)
+      if (!match) throw new Error('No valid JSON found in response')
+      riskReport = JSON.parse(match[0])
+    }
 
     return NextResponse.json({ riskReport })
 
   } catch (error) {
     console.error('Risk Radar error:', error)
     return NextResponse.json(
-      { error: 'Failed to analyze risks. Try again.' },
+      { error: error.message || 'Failed to analyze risks. Try again.' },
       { status: 500 }
     )
   }

@@ -8,7 +8,7 @@ export async function POST(request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { projectId, blueprintId } = await request.json()
+    const { projectId, blueprintId, forceStrategy } = await request.json()
 
     // Verify ownership
     const { data: project } = await supabase
@@ -33,6 +33,7 @@ export async function POST(request) {
         status:       'running',
         tier,
         started_at:   new Date().toISOString(),
+        force_strategy: forceStrategy || null,
         agent_statuses: {
           frontend:    'running',
           backend:     tier > 1 ? 'running' : 'skipped',

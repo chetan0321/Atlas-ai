@@ -1,0 +1,46 @@
+{
+  "id": "saas-dashboard",
+  "name": "SaaS Dashboard",
+  "description": "A full-featured SaaS application dashboard with sidebar navigation, metric cards, data tables, user management, and settings. Auth-ready, Supabase-wired.",
+  "version": "1.0.0",
+  "keywords": [
+    "dashboard", "saas", "admin", "analytics", "metrics", "management",
+    "app", "platform", "control panel", "crm", "erp", "monitoring",
+    "table", "users", "settings", "data", "charts", "reports"
+  ],
+  "features": [
+    "sidebar navigation", "metric cards", "data table", "user management",
+    "settings page", "charts", "notifications", "search", "filters",
+    "pagination", "export CSV", "dark mode"
+  ],
+  "compatibility": {
+    "nextjs": ">=16.0.0",
+    "react": ">=19.0.0",
+    "tailwindcss": ">=4.0.0"
+  },
+  "dependencies": {
+    "required": ["@supabase/supabase-js"],
+    "optional": ["recharts", "react-table"],
+    "peer": []
+  },
+  "sections": {
+    "frontend": ["layout.jsx", "metrics.jsx", "table.jsx"],
+    "backend": ["crud.js"],
+    "schema": ["schema.sql"],
+    "security": [],
+    "test": ["metrics.jsx"]
+  },
+  "tier": 2,
+  "hasAuth": true,
+  "hasPayments": false,
+  "hasRealtime": true,
+  "estimatedInputTokens": 7000,
+  "estimatedOutputTokens": 14000,
+  "performanceBaseline": {
+    "lighthouseScore": 88,
+    "bundleSizeKB": 220,
+    "timeToInteractiveMs": 2500
+  },
+  "testStatus": "passing",
+  "lastTested": "2026-07-12"
+}

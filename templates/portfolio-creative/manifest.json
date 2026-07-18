@@ -1,0 +1,46 @@
+{
+  "id": "portfolio-creative",
+  "name": "Creative Portfolio",
+  "description": "A stunning personal portfolio for designers, developers, and creatives. Includes animated hero, work showcase, about section, skills grid, and contact form.",
+  "version": "1.0.0",
+  "keywords": [
+    "portfolio", "creative", "designer", "developer", "showcase", "work",
+    "personal", "profile", "resume", "cv", "projects", "gallery",
+    "freelancer", "agency", "about me", "hire me"
+  ],
+  "features": [
+    "animated hero", "work showcase", "project cards", "about section",
+    "skills grid", "contact form", "social links", "resume download",
+    "case study", "dark mode", "smooth scroll"
+  ],
+  "compatibility": {
+    "nextjs": ">=16.0.0",
+    "react": ">=19.0.0",
+    "tailwindcss": ">=4.0.0"
+  },
+  "dependencies": {
+    "required": [],
+    "optional": ["framer-motion"],
+    "peer": []
+  },
+  "sections": {
+    "frontend": ["hero.jsx", "work.jsx", "contact.jsx"],
+    "backend": [],
+    "schema": [],
+    "security": [],
+    "test": ["hero.jsx"]
+  },
+  "tier": 1,
+  "hasAuth": false,
+  "hasPayments": false,
+  "hasRealtime": false,
+  "estimatedInputTokens": 4500,
+  "estimatedOutputTokens": 9000,
+  "performanceBaseline": {
+    "lighthouseScore": 94,
+    "bundleSizeKB": 100,
+    "timeToInteractiveMs": 1500
+  },
+  "testStatus": "passing",
+  "lastTested": "2026-07-12"
+}

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createChatCompletion } from '@/lib/claude/client'
+import { createOpenRouterCompletion, getContent } from '@/lib/claude/client'
 
 export async function POST(request) {
   const supabase = await createClient()
@@ -16,10 +16,9 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Description is required' }, { status: 400 })
     }
 
-    const stream = await createChatCompletion({
-      model: 'llama-3.3-70b-versatile',
+    // Qwen 3.6 Plus: 1M context, better structured output for research tasks
+    const response = await createOpenRouterCompletion({
       max_tokens: 2000,
-      stream: true,
       messages: [
         {
           role: 'system',
@@ -55,15 +54,23 @@ Be specific and practical. No generic advice.`
       ]
     })
 
+    const text = getContent(response)
+
+    // Stream the text back so the UI still gets the streaming experience
     const readable = new ReadableStream({
-      async start(controller) {
-        for await (const chunk of stream) {
-          const text = chunk.choices[0]?.delta?.content || ''
-          if (text) {
-            controller.enqueue(new TextEncoder().encode(text))
+      start(controller) {
+        // Send in chunks to simulate streaming
+        const chunks = text.match(/.{1,50}/gs) || [text]
+        let i = 0
+        const send = () => {
+          if (i < chunks.length) {
+            controller.enqueue(new TextEncoder().encode(chunks[i++]))
+            setTimeout(send, 10)
+          } else {
+            controller.close()
           }
         }
-        controller.close()
+        send()
       }
     })
 
@@ -82,3 +89,4 @@ Be specific and practical. No generic advice.`
     )
   }
 }
+

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createChatCompletion } from '@/lib/claude/client'
+import { createOpenRouterCompletion, getContent } from '@/lib/claude/client'
 
 export async function POST(request) {
   const supabase = await createClient()
@@ -12,8 +12,7 @@ export async function POST(request) {
   try {
     const { description, research } = await request.json()
 
-    const response = await createChatCompletion({
-      model: 'llama-3.3-70b-versatile',
+    const response = await createOpenRouterCompletion({
       max_tokens: 3000,
       messages: [
         {
@@ -56,7 +55,7 @@ Rules:
       ]
     })
 
-    const raw = response.choices[0].message.content.trim()
+    const raw = getContent(response).trim()
 
     // Clean up in case model adds markdown fences anyway
     const cleaned = raw
@@ -65,7 +64,14 @@ Rules:
       .replace(/\n?```$/, '')
       .trim()
 
-    const blueprint = JSON.parse(cleaned)
+    let blueprint
+    try {
+      blueprint = JSON.parse(cleaned)
+    } catch {
+      const match = cleaned.match(/\{[\s\S]*\}/)
+      if (!match) throw new Error('No valid JSON found in blueprint response')
+      blueprint = JSON.parse(match[0])
+    }
 
     return NextResponse.json({ blueprint })
 

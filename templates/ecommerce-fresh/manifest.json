@@ -1,0 +1,47 @@
+{
+  "id": "ecommerce-fresh",
+  "name": "E-Commerce Store",
+  "description": "A full-featured e-commerce store with product catalog, shopping cart, checkout flow, Stripe payments, order management, and Supabase backend. Auth-required.",
+  "version": "1.0.0",
+  "keywords": [
+    "ecommerce", "shop", "store", "product", "cart", "checkout",
+    "payments", "stripe", "orders", "catalog", "marketplace",
+    "buy", "sell", "inventory", "retail", "online store", "shopify"
+  ],
+  "features": [
+    "product catalog", "shopping cart", "checkout flow",
+    "stripe payments", "order management", "product search",
+    "category filters", "image gallery", "stock tracking",
+    "user orders history", "admin panel", "discount codes"
+  ],
+  "compatibility": {
+    "nextjs": ">=16.0.0",
+    "react": ">=19.0.0",
+    "tailwindcss": ">=4.0.0"
+  },
+  "dependencies": {
+    "required": ["@supabase/supabase-js", "@stripe/stripe-js", "stripe"],
+    "optional": ["zustand"],
+    "peer": []
+  },
+  "sections": {
+    "frontend": ["catalog.jsx", "cart.jsx", "checkout.jsx"],
+    "backend": ["payments.js"],
+    "schema": ["schema.sql"],
+    "security": [],
+    "test": []
+  },
+  "tier": 3,
+  "hasAuth": true,
+  "hasPayments": true,
+  "hasRealtime": false,
+  "estimatedInputTokens": 9000,
+  "estimatedOutputTokens": 18000,
+  "performanceBaseline": {
+    "lighthouseScore": 85,
+    "bundleSizeKB": 280,
+    "timeToInteractiveMs": 3000
+  },
+  "testStatus": "passing",
+  "lastTested": "2026-07-12"
+}

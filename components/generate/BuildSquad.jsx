@@ -33,6 +33,17 @@ export default function BuildSquad({
   const isComplete  = overallStatus === 'completed'
   const isFailed    = overallStatus === 'failed'
 
+  // When generation is complete, force any 'running'/'waiting' agents to 'done'
+  // (DB parallel writes can leave stale 'running' statuses)
+  const displayStatuses = isComplete
+    ? Object.fromEntries(
+        Object.entries(agentStatuses).map(([k, v]) => [
+          k,
+          (v === 'running' || v === 'waiting') ? 'done' : v
+        ])
+      )
+    : agentStatuses
+
   return (
     <div style={{ maxWidth: '700px', margin: '0 auto' }}>
 
@@ -86,7 +97,7 @@ export default function BuildSquad({
         gap: '10px', marginBottom: '24px',
       }}>
         {AGENTS.map((agent) => {
-          const st    = STATUS[agentStatuses[agent.key] || 'queued'] || STATUS.queued
+          const st    = STATUS[displayStatuses[agent.key] || 'queued'] || STATUS.queued
           const pulse = st.pulse
 
           return (

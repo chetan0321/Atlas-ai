@@ -7,6 +7,7 @@ import IntentGraph from '@/components/blueprint/IntentGraph'
 import RiskReport from '@/components/risk/RiskReport'
 import BuildSquad from '@/components/generate/BuildSquad'
 import FileViewer from '@/components/generate/FileViewer'
+import TemplateMatchCard from '@/components/generate/TemplateMatchCard'
 import { bundleFilesToZip } from '@/lib/zip/bundler'
 import { Search } from 'lucide-react'
 
@@ -205,7 +206,14 @@ export default function BuildClient({ projectId: initialProjectId }) {
   const [riskStep, setRiskStep]       = useState(0)
   const [riskError, setRiskError]     = useState(false)
   const [researchError, setResearchError] = useState(false)
+  const [blueprintError, setBlueprintError] = useState(false)
   const [resuming, setResuming]       = useState(!!initialProjectId)
+
+  // ── Template match state (Sprint 2) ──
+  const [templateMatch, setTemplateMatch]       = useState(null)
+  const [showTemplateCard, setShowTemplateCard] = useState(false)
+  const [pendingGenerate, setPendingGenerate]   = useState(false) // user clicked Generate while card is showing
+  const [forceStrategy, setForceStrategy]       = useState(null)  // 'customize' | 'generate' (user override)
 
   // ── Phase 1: Generation state ──
   const [generationRunId, setGenerationRunId]   = useState(null)
@@ -299,6 +307,7 @@ export default function BuildClient({ projectId: initialProjectId }) {
   // ── Blueprint ──
   async function handleGenerateBlueprint() {
     setBlueprintLoading(true)
+    setBlueprintError(false)
     try {
       const res  = await fetch('/api/blueprint/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ description, research }) })
       const data = await res.json()
@@ -308,27 +317,37 @@ export default function BuildClient({ projectId: initialProjectId }) {
         const saveData = await saveRes.json()
         if (saveData.blueprintId) setBlueprintId(saveData.blueprintId)
       }
-    } catch { alert('Blueprint generation failed. Try again.') }
+    } catch { setBlueprintError(true) }
     finally { setBlueprintLoading(false) }
   }
 
-  // ── Approve blueprint → Risk ──
+  // ── Approve blueprint → Risk + async template prefetch ──
   async function handleApprove(finalBlueprint) {
     setBlueprint(finalBlueprint)
     const saveRes  = await fetch('/api/project/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'blueprint', projectId, blueprint: finalBlueprint }) })
     const saveData = await saveRes.json()
     const currentBlueprintId = saveData.blueprintId || blueprintId
     setBlueprintId(currentBlueprintId); goStage('risk')
+
+    // Fetch template match in background — don't block risk analysis
+    const desc = finalBlueprint.description || description
+    if (desc) {
+      fetch('/api/generate/match', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ description: desc }) })
+        .then(r => r.json())
+        .then(data => { if (data.match) setTemplateMatch(data.match) })
+        .catch(() => {}) // Non-fatal
+    }
+
     if (riskReport) return
     setRiskLoading(true); setRiskError(false)
     try {
       const res  = await fetch('/api/risk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ blueprint: finalBlueprint }) })
-      if (!res.ok) throw new Error('Risk analysis failed')
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `Risk analysis failed (${res.status})`)
       if (data.riskReport) {
         setRiskReport(data.riskReport)
         await fetch('/api/project/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'risk', projectId, blueprintId: currentBlueprintId, riskReport: data.riskReport }) })
-      } else throw new Error('No risk report returned')
+      } else throw new Error('No risk report returned from server')
     } catch (err) { console.error(err); setRiskError(true) }
     finally { setRiskLoading(false) }
   }
@@ -338,8 +357,26 @@ export default function BuildClient({ projectId: initialProjectId }) {
     goStage('saved')
   }
 
-  // ── Phase 1: Start generation (chunked — bypasses Vercel 60s limit) ──────────
-  async function handleStartGeneration() {
+  // ── Phase 1: Start generation — shows TemplateMatchCard if match found ────────
+  async function handleStartGeneration(chosenStrategy = null) {
+    // Safety guard: if a SyntheticEvent / Window leaks in as the first arg, discard it.
+    // This can happen from stale Turbopack bundles that haven't picked up arrow-function wrappers yet.
+    if (chosenStrategy !== null && typeof chosenStrategy !== 'string') {
+      chosenStrategy = null
+    }
+
+    // If we have a template match and haven't shown the card yet, show it first
+    if (templateMatch && !chosenStrategy && !pendingGenerate) {
+      setShowTemplateCard(true)
+      setPendingGenerate(true)
+      return // Wait for user choice
+    }
+
+    // User made a choice (or no template) — proceed
+    setShowTemplateCard(false)
+    setPendingGenerate(false)
+    if (chosenStrategy) setForceStrategy(chosenStrategy)
+
     setGenerationLoading(true)
     setGenerationError(null)
     goStage('generating')
@@ -370,7 +407,7 @@ export default function BuildClient({ projectId: initialProjectId }) {
       const initRes = await fetch('/api/generate/init', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, blueprintId }),
+        body: JSON.stringify({ projectId, blueprintId, forceStrategy: chosenStrategy || forceStrategy }),
       })
       
       const initData = await initRes.json()
@@ -505,6 +542,16 @@ export default function BuildClient({ projectId: initialProjectId }) {
     {/* Full-screen Risk Loading Overlay */}
     {riskLoading && <RiskLoadingOverlay step={riskStep} />}
 
+    {/* Template Match Card — shown before generation if template found */}
+    {showTemplateCard && templateMatch && (
+      <TemplateMatchCard
+        templateMatch={templateMatch}
+        onAccept={(strategy) => handleStartGeneration(strategy)}
+        onScratch={() => handleStartGeneration('generate')}
+        onDismiss={() => handleStartGeneration(templateMatch.strategy)}
+      />
+    )}
+
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', background:'#0d0d18', position:'relative' }}>
 
       {/* ── Step bar ── */}
@@ -610,6 +657,13 @@ export default function BuildClient({ projectId: initialProjectId }) {
                 </div>
               )}
             </div>
+            {/* Blueprint error banner */}
+            {blueprintError && (
+              <div style={{ background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:'10px', padding:'14px 18px', marginBottom:'16px', textAlign:'center' }}>
+                <p style={{ color:'#f87171', fontSize:'13px', fontWeight:'600', margin:0 }}>Blueprint generation failed. Please try again.</p>
+                <button onClick={handleGenerateBlueprint} style={{ marginTop:'10px', background:'#7c3aed', color:'#fff', border:'none', padding:'7px 18px', borderRadius:'7px', fontSize:'12px', fontWeight:'600', cursor:'pointer' }}>Try Again</button>
+              </div>
+            )}
             {!loading && (
               <div className="build-section-enter" style={{ display:'flex', justifyContent:'center', marginTop:'32px', marginBottom:'20px' }}>
                 <button onClick={handleGenerateBlueprint} disabled={blueprintLoading}
@@ -632,6 +686,18 @@ export default function BuildClient({ projectId: initialProjectId }) {
                 onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.06)';e.currentTarget.style.color='#fff'}}
                 onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color='rgba(255,255,255,0.4)'}}
               >← Research</button>
+              {riskReport && (
+                <button onClick={()=>goStage('risk')} style={{ background:'transparent', color:'rgba(255,255,255,0.4)', border:'1px solid rgba(255,255,255,0.1)', padding:'5px 13px', borderRadius:'7px', fontSize:'12px', fontWeight:'500', cursor:'pointer', transition:'all 0.15s', flexShrink:0 }}
+                  onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.06)';e.currentTarget.style.color='#fff'}}
+                  onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color='rgba(255,255,255,0.4)'}}
+                >Risk Analysis →</button>
+              )}
+              {generationRunId && (
+                <button onClick={()=>goStage('generating')} style={{ background:'rgba(124,58,237,0.15)', color:'#c4b5fd', border:'1px solid rgba(124,58,237,0.3)', padding:'5px 13px', borderRadius:'7px', fontSize:'12px', fontWeight:'600', cursor:'pointer', transition:'all 0.15s', flexShrink:0 }}
+                  onMouseEnter={e=>{e.currentTarget.style.background='rgba(124,58,237,0.25)'}}
+                  onMouseLeave={e=>{e.currentTarget.style.background='rgba(124,58,237,0.15)'}}
+                >View Generated App →</button>
+              )}
               <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:'9px', padding:'3px', marginLeft:'auto', border:'1px solid rgba(255,255,255,0.08)' }}>
                 {[{key:'text',label:'📝 Blueprint',onClick:()=>setBlueprintView('text')},{key:'graph',label:'🔗 Graph',onClick:()=>setBlueprintView('graph')}].map(tab=>(
                   <button key={tab.key} onClick={tab.onClick} style={{ padding:'5px 14px', borderRadius:'7px', fontSize:'12px', fontWeight:'600', border:'none', cursor:'pointer', transition:'all 0.15s', whiteSpace:'nowrap', background:blueprintView===tab.key?'rgba(139,92,246,0.35)':'transparent', color:blueprintView===tab.key?'#c4b5fd':'rgba(255,255,255,0.4)' }}>{tab.label}</button>
@@ -650,11 +716,17 @@ export default function BuildClient({ projectId: initialProjectId }) {
         {/* RISK */}
         {stage==='risk' && (
           <div key={`risk-${stageKey}`} className="build-slide-enter" style={{ maxWidth:'900px', margin:'24px auto 0' }}>
-            <div style={{ marginBottom:'20px' }}>
+            <div style={{ marginBottom:'20px', display:'flex', gap:'10px' }}>
               <button onClick={()=>goStage('blueprint')} style={{ background:'transparent', color:'rgba(255,255,255,0.4)', border:'1px solid rgba(255,255,255,0.1)', padding:'5px 13px', borderRadius:'7px', fontSize:'12px', fontWeight:'500', cursor:'pointer', transition:'all 0.15s' }}
                 onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.06)';e.currentTarget.style.color='#fff'}}
                 onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color='rgba(255,255,255,0.4)'}}
               >← Blueprint</button>
+              {generationRunId && (
+                <button onClick={()=>goStage('generating')} style={{ background:'rgba(124,58,237,0.15)', color:'#c4b5fd', border:'1px solid rgba(124,58,237,0.3)', padding:'5px 13px', borderRadius:'7px', fontSize:'12px', fontWeight:'600', cursor:'pointer', transition:'all 0.15s' }}
+                  onMouseEnter={e=>{e.currentTarget.style.background='rgba(124,58,237,0.25)'}}
+                  onMouseLeave={e=>{e.currentTarget.style.background='rgba(124,58,237,0.15)'}}
+                >View Generated App →</button>
+              )}
             </div>
             {/* riskLoading is handled by the overlay — show nothing here while loading */}
             {!riskLoading && riskError && (
@@ -666,7 +738,7 @@ export default function BuildClient({ projectId: initialProjectId }) {
               </div>
             )}
             {!riskLoading && !riskError && riskReport && (
-              <RiskReport report={riskReport} onContinue={handleStartGeneration} onBack={()=>goStage('blueprint')}/>
+              <RiskReport report={riskReport} onContinue={() => handleStartGeneration()} onBack={()=>goStage('blueprint')}/>
             )}
           </div>
         )}
@@ -684,7 +756,7 @@ export default function BuildClient({ projectId: initialProjectId }) {
             </p>
             <div style={{ display:'flex', gap:'10px', justifyContent:'center', flexWrap:'wrap' }}>
               <button
-                onClick={handleStartGeneration}
+                onClick={() => handleStartGeneration()}
                 disabled={generationLoading}
                 style={{ background: generationLoading ? 'rgba(124,58,237,0.4)' : 'linear-gradient(135deg,#7c3aed,#4f46e5)', color:'#fff', border:'none', padding:'12px 30px', borderRadius:'10px', fontSize:'14px', fontWeight:'700', cursor: generationLoading ? 'not-allowed' : 'pointer', boxShadow:'0 4px 20px rgba(124,58,237,0.35)', transition:'all 0.18s' }}
                 onMouseEnter={e=>{if(!generationLoading){e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 8px 28px rgba(124,58,237,0.5)'}}}
@@ -702,6 +774,12 @@ export default function BuildClient({ projectId: initialProjectId }) {
         {stage==='generating' && (
           <div key={`generating-${stageKey}`} className="build-slide-enter" style={{ maxWidth:'900px', margin:'24px auto 0' }}>
             <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'24px' }}>
+              {riskReport && (
+                <button onClick={()=>goStage('risk')} style={{ background:'transparent', color:'rgba(255,255,255,0.4)', border:'1px solid rgba(255,255,255,0.1)', padding:'5px 13px', borderRadius:'7px', fontSize:'12px', fontWeight:'500', cursor:'pointer', transition:'all 0.15s', flexShrink:0 }}
+                  onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.06)';e.currentTarget.style.color='#fff'}}
+                  onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color='rgba(255,255,255,0.4)'}}
+                >← Risk Analysis</button>
+              )}
               <div style={{ width:'28px', height:'28px', borderRadius:'50%', background:'linear-gradient(135deg,#7c3aed,#4f46e5)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px' }}>⚡</div>
               <span style={{ fontSize:'15px', fontWeight:'700', color:'#fff' }}>Generating Your App</span>
               {generationStatus !== 'completed' && generationStatus !== 'failed' && (

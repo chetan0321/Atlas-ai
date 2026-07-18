@@ -1,0 +1,46 @@
+{
+  "id": "calculator-scientific",
+  "name": "Scientific Calculator",
+  "description": "A fully-featured scientific calculator app with expression history, keyboard support, unit conversions, and formula library. Clean, precision-focused UI.",
+  "version": "1.0.0",
+  "keywords": [
+    "calculator", "math", "scientific", "compute", "formula", "equation",
+    "arithmetic", "algebra", "trigonometry", "engineering", "unit", "conversion",
+    "tool", "utility", "compute tool", "math tool"
+  ],
+  "features": [
+    "arithmetic operations", "scientific functions", "expression history",
+    "keyboard input", "unit conversion", "formula library",
+    "copy result", "parentheses", "memory functions", "angle mode toggle"
+  ],
+  "compatibility": {
+    "nextjs": ">=16.0.0",
+    "react": ">=19.0.0",
+    "tailwindcss": ">=4.0.0"
+  },
+  "dependencies": {
+    "required": [],
+    "optional": [],
+    "peer": []
+  },
+  "sections": {
+    "frontend": ["calculator.jsx", "history.jsx"],
+    "backend": [],
+    "schema": [],
+    "security": [],
+    "test": ["calculator.jsx"]
+  },
+  "tier": 1,
+  "hasAuth": false,
+  "hasPayments": false,
+  "hasRealtime": false,
+  "estimatedInputTokens": 4000,
+  "estimatedOutputTokens": 8000,
+  "performanceBaseline": {
+    "lighthouseScore": 96,
+    "bundleSizeKB": 85,
+    "timeToInteractiveMs": 1200
+  },
+  "testStatus": "passing",
+  "lastTested": "2026-07-12"
+}

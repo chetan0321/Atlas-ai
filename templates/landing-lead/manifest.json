@@ -1,0 +1,44 @@
+{
+  "id": "landing-lead",
+  "name": "Lead Capture Landing Page",
+  "description": "A high-converting landing page for SaaS products, startups, and tools. Includes hero, features, pricing, testimonials, and lead capture form.",
+  "version": "1.0.0",
+  "keywords": [
+    "landing", "lead", "capture", "marketing", "saas", "startup", "product",
+    "launch", "waitlist", "signup", "conversion", "homepage", "promo", "page"
+  ],
+  "features": [
+    "hero", "headline", "cta", "features grid", "pricing table",
+    "testimonials", "faq", "lead form", "newsletter", "contact", "footer"
+  ],
+  "compatibility": {
+    "nextjs": ">=16.0.0",
+    "react": ">=19.0.0",
+    "tailwindcss": ">=4.0.0"
+  },
+  "dependencies": {
+    "required": [],
+    "optional": ["framer-motion"],
+    "peer": []
+  },
+  "sections": {
+    "frontend": ["layout.jsx", "features.jsx", "forms.jsx"],
+    "backend": [],
+    "schema": [],
+    "security": [],
+    "test": ["layout.jsx", "forms.jsx"]
+  },
+  "tier": 1,
+  "hasAuth": false,
+  "hasPayments": false,
+  "hasRealtime": false,
+  "estimatedInputTokens": 5000,
+  "estimatedOutputTokens": 10000,
+  "performanceBaseline": {
+    "lighthouseScore": 92,
+    "bundleSizeKB": 120,
+    "timeToInteractiveMs": 2000
+  },
+  "testStatus": "passing",
+  "lastTested": "2026-07-11"
+}

@@ -1,0 +1,84 @@
+/**
+ * landing-lead / sections / styles.css
+ *
+ * Brand token CSS variables — the AI changes these values, NOT the component code.
+ * Every component references these variables for colors, fonts, and spacing.
+ *
+ * TEMPLATE RULES (for AI customization):
+ * - Change the VALUES of CSS variables to match the brand
+ * - Do NOT remove any variable — components depend on all of them
+ * - Add new variables if needed, but keep existing ones
+ */
+
+:root {
+  /* ── Brand Colors ── */
+  --brand-primary:    #7c3aed;      /* Main accent — buttons, links, highlights */
+  --brand-secondary:  #a78bfa;      /* Lighter accent — badges, icons */
+  --brand-bg:         #08080f;      /* Page background */
+  --brand-bg-glow:    rgba(124,58,237,0.18); /* Hero radial glow */
+  --brand-surface:    #0a0a12;      /* Card/section background */
+  --brand-border:     rgba(255,255,255,0.07); /* Subtle dividers */
+  --brand-text:       #ffffff;      /* Primary text */
+  --brand-text-muted: rgba(255,255,255,0.45); /* Secondary text */
+  --brand-shadow:     rgba(124,58,237,0.4);   /* Button box-shadow color */
+  --brand-success:    #4ade80;      /* Success states */
+  --brand-error:      #f87171;      /* Error states */
+
+  /* ── Typography ── */
+  --brand-font:       'Inter', system-ui, -apple-system, sans-serif;
+  --brand-font-mono:  'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ── Spacing ── */
+  --brand-radius-sm:  8px;
+  --brand-radius-md:  12px;
+  --brand-radius-lg:  16px;
+  --brand-radius-xl:  20px;
+}
+
+/* ── Base reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--brand-font);
+  background: var(--brand-bg);
+  color: var(--brand-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Input placeholder styling ── */
+input::placeholder,
+textarea::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+/* ── Focus ring override ── */
+input:focus,
+textarea:focus,
+button:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--brand-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.2);
+}
